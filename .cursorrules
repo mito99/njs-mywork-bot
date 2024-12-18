@@ -1,0 +1,2 @@
+pip ではなく、uv を使ってパッケージを管理します。
+例: uv add pydantic
