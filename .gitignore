@@ -38,4 +38,4 @@ ENV/
 *.log
 
 # Storage
-storage/ 
+storage/*

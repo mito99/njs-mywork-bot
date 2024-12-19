@@ -15,9 +15,11 @@ class Config(BaseSettings):
     slack_app_token: str
     slack_signing_secret: str
     log_level: str = "INFO"
-    storage_path: Path = Path("./storage")
+    paid_leave_storage_path: Path = Path("./volumes/storage/paid_leave")
+    work_report_storage_path: Path = Path("./volumes/storage/work_report")
     startup_time: float = time()
     allowed_user: str
+    google_gemini_model_name: str
 
 
 def load_config() -> Config:

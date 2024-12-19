@@ -1,23 +1,19 @@
 import logging
 import sys
-from logging.handlers import RotatingFileHandler
 
 
-def setup_logging():
+def setup_logging(log_level: str = "INFO"):
     """アプリケーションのログ設定を初期化します。"""
-    logger = logging.getLogger()
-    logger.setLevel(logging.INFO)
+    # 文字列をログレベルに変換
+    numeric_level = getattr(logging, log_level.upper(), logging.INFO)
 
-    # コンソール出力
+    logger = logging.getLogger()
+    logger.setLevel(numeric_level)
+
+    # コンソール出力のみ設定
     console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(numeric_level)
     console_handler.setFormatter(
         logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
     )
     logger.addHandler(console_handler)
-
-    # ファイル出力
-    file_handler = RotatingFileHandler("app.log", maxBytes=1024 * 1024, backupCount=5)
-    file_handler.setFormatter(
-        logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-    )
-    logger.addHandler(file_handler)
