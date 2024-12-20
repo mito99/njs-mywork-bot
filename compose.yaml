@@ -3,6 +3,7 @@ services:
     build: .
     volumes:
       - ./.env:/app/.env:ro
+      - ./config.yaml:/app/config.yaml:ro
       - ./storage:/app/storage
     restart: unless-stopped
     environment:

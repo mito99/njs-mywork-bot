@@ -1,0 +1,13 @@
+application:
+  log_level: INFO
+
+  slack:
+    allowed_users:
+      - U085CTDATNJ
+
+  storage:
+    "勤怠":
+      path: ./storage/work_report
+    "有休":
+      path: ./storage/paid_leave
+
