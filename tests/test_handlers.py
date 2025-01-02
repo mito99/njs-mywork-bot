@@ -1,8 +1,8 @@
 import pytest
 from slack_bolt import App
 
-from slack_assistant_bot.handlers.file_handler import register_file_handlers
-from slack_assistant_bot.handlers.message_handler import register_message_handlers
+from bot.handlers.file_handler import register_file_handlers
+from bot.handlers.message_handler import register_message_handlers
 
 
 def test_message_handler_registration():

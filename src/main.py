@@ -3,9 +3,9 @@ from time import sleep
 
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
-from slack_assistant_bot.app import create_app
-from slack_assistant_bot.config import load_config
-from slack_assistant_bot.utils.logging import setup_logging
+from bot.app import create_app
+from bot.config import load_config
+from bot.utils.logging import setup_logging
 
 
 def start_handler(app, app_token, max_retries=None):

@@ -8,9 +8,9 @@ from pathlib import Path
 import requests
 from slack_bolt import App
 
-from slack_assistant_bot.config import Config
-from slack_assistant_bot.handlers.validation import is_valid_message
-from slack_assistant_bot.services import SimpleChatbot
+from bot.config import Config
+from bot.handlers.validation import is_valid_message
+from bot.services import SimpleChatbot
 
 logger = logging.getLogger(__name__)
 

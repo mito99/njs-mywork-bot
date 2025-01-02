@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from slack_assistant_bot.config import Config
+from bot.config import Config
 
 
 @pytest.fixture

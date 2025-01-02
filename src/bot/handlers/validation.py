@@ -1,6 +1,6 @@
 import logging
 
-from slack_assistant_bot.config import Config
+from bot.config import Config
 
 logger = logging.getLogger(__name__)
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from slack_assistant_bot.config import Config, load_config
+from bot.config import Config, load_config
 
 
 def test_config_default_values():

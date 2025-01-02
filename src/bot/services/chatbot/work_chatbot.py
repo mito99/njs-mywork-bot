@@ -1,7 +1,7 @@
 from pathlib import Path
 from typing import Callable, Iterator
 
-from slack_assistant_bot.config import Config
+from bot.config import Config
 
 
 class WorkChatbot:

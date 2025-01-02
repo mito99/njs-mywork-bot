@@ -3,7 +3,7 @@ from pathlib import Path
 
 import pytest
 
-from slack_assistant_bot.services.storage import FileStorage
+from bot.services.storage import FileStorage
 
 
 @pytest.fixture
