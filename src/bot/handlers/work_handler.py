@@ -59,7 +59,7 @@ def register_work_handlers(app: App, config: Config):
         message_text = message["text"]
 
         # 初回メッセージの送信
-        thread_ts = message.get("ts")
+        thread_ts = message.get("thread_ts", message["ts"])
         initial_response = client.chat_postMessage(
             channel=message["channel"],
             text=f"...",
@@ -68,7 +68,6 @@ def register_work_handlers(app: App, config: Config):
 
         chatbot = WorkChatbot(config, llm, memory)
         chatbot.add_tool(CreateAttendanceSheetTool())
-        # chatbot.add_tool(GetAttendanceSheetTool())
         chatbot.add_tool(SendFileTool(config, client, message, say))
         chatbot.add_tool(ListFilesTool(config))
 
