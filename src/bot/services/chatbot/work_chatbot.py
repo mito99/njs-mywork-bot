@@ -6,20 +6,14 @@ from pydantic import BaseModel, Field
 from bot.config import Config, load_config
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models import BaseChatModel
-from langchain_core.tools import tool
 from langgraph.prebuilt import create_react_agent
 from bot.tools.work_tools import (
-    create_attendance_sheet,
-    get_attendance_sheet,
-    list_attendance_sheets,
-    send_file
+    CreateAttendanceSheetTool,
+    GetAttendanceSheetTool,
+    SendFileTool,
+    ListAttendanceSheetsTool
 )
-
-# @tool デコレータを追加
-create_attendance_sheet = tool(create_attendance_sheet)
-get_attendance_sheet = tool(get_attendance_sheet)
-send_file = tool(send_file)
-list_attendance_sheets = tool(list_attendance_sheets)
+from langchain_core.tools import BaseTool
 
 class WorkAgentState(BaseModel):
     """エージェントの状態"""
@@ -32,12 +26,10 @@ class WorkAgent:
 
     def __init__(self, llm: BaseChatModel):
         self.llm = llm
-        self.tools = [
-            create_attendance_sheet, 
-            get_attendance_sheet, 
-            send_file,
-            list_attendance_sheets
-        ]
+        self.tools = []
+
+    def add_tool(self, tool: BaseTool):
+        self.tools.append(tool)
 
     def invoke(self, state: WorkAgentState) -> Iterator[str]:
         agent = create_react_agent(self.llm, self.tools)
@@ -79,11 +71,12 @@ class WorkAgent:
 class WorkChatbot:
     """ワークチャットボットのサービス"""
 
-    def __init__(self, config: Config):
+    def __init__(self, config: Config, llm: BaseChatModel):
         self.config = config
-        self.llm = ChatGoogleGenerativeAI(
-            model=config.google_gemini_model_name,
-        )
+        self.agent = WorkAgent(llm)
+
+    def add_tool(self, tool: BaseTool):
+        self.agent.add_tool(tool)
 
     def stream_chat(
         self,
@@ -92,11 +85,17 @@ class WorkChatbot:
     ) -> Iterator[str]:
         """チャットボットにメッセージを送信し、ストリーミング形式で返答を返します。"""
         state = WorkAgentState(user_name=user_name, user_query=message)
-        agent = WorkAgent(self.llm)
-        return agent.invoke(state)
+        return self.agent.invoke(state)
 
 if __name__ == "__main__":
     config = load_config()
-    chatbot = WorkChatbot(config)
+    llm = ChatGoogleGenerativeAI(
+        model=config.google_gemini_model_name,
+    )
+    chatbot = WorkChatbot(config, llm)
+    chatbot.add_tool(CreateAttendanceSheetTool())
+    chatbot.add_tool(GetAttendanceSheetTool())
+    chatbot.add_tool(SendFileTool())
+    chatbot.add_tool(ListAttendanceSheetsTool())
     for response in chatbot.chat("僕の勤怠表送って", "やまだ"):
         print(response)
