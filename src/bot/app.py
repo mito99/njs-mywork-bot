@@ -4,7 +4,7 @@ from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 
 from .config import Config
-from .handlers import register_message_handlers, register_work_command_handlers
+from .handlers import register_work_handlers
 
 
 def create_app(config: Config) -> App:
@@ -13,7 +13,7 @@ def create_app(config: Config) -> App:
 
     # 各種ハンドラーの登録
     # register_message_handlers(app, config)
-    register_work_command_handlers(app, config)
+    register_work_handlers(app, config)
 
     return app
 

@@ -40,7 +40,7 @@ class Config(BaseSettings):
     slack_app_token: str
     slack_signing_secret: str
     google_api_key: str
-    google_geminai_model_name: str = "gemini-2.0-flash-exp"
+    google_gemini_model_name: str = "gemini-2.0-flash-exp"
 
     application: ApplicationConfig = Field(default_factory=ApplicationConfig)
 

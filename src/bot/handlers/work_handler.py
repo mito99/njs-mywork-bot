@@ -11,16 +11,17 @@ from slack_bolt import App
 from bot.config import Config
 from bot.handlers.validation import is_valid_message
 from bot.services import SimpleChatbot
+from bot.services.chatbot.work_chatbot import WorkChatbot
 
 logger = logging.getLogger(__name__)
 
 
-def register_work_command_handlers(app: App, config: Config):
+def register_work_handlers(app: App, config: Config):
     """メッセージ関連のイベントハンドラーを登録します。"""
 
-    @app.message()
-    def handle_message(message, say, client):
-        """メッセージの処理"""
+    @app.message(re.compile("^cmd\s+.*"))
+    def handle_command(message, say, client):
+        """コマンドの処理"""
 
         # メッセージの検証を行う
         if not is_valid_message(message, config):
@@ -40,10 +41,32 @@ def register_work_command_handlers(app: App, config: Config):
             say(f"エラーが発生しました。\n{e}")
             return
 
-    @app.event("message")
-    def handle_message_events(body, logger):
-        logger.debug(body)
+    chatbot = WorkChatbot(config)
 
+    @app.message(re.compile("^(?!cmd).*"))
+    def handle_chatbot(message, say, client):
+        """チャットボットの処理"""
+
+        user_id = message["user"]
+        user_info = client.users_info(user=user_id)
+        display_name = user_info["user"]["profile"]["display_name"]
+        message_text = message["text"]
+
+        # 初回メッセージの送信
+        thread_ts = message.get("ts")
+        initial_response = client.chat_postMessage(
+            channel=message["channel"],
+            text=f"...",
+            thread_ts=thread_ts,
+        )
+
+        # ストリーミングで返答を送信
+        for chunk in chatbot.stream_chat(message_text, display_name):
+            client.chat_update(
+                channel=message["channel"],
+                ts=initial_response["ts"],
+                text=chunk,
+            )
 
 class WorkCommand(ABC):
     """作業コマンドの抽象基底クラス"""
