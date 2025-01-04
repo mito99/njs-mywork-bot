@@ -21,11 +21,11 @@ class SlackConfig(BaseModel):
     allowed_users: List[str]
 
 
+
 class ApplicationConfig(BaseModel):
     log_level: str = "INFO"
     storage: Dict[str, StorageConfig] = Field(default_factory=dict)
     slack: SlackConfig = Field(default_factory=SlackConfig)
-
 
 class Config(BaseSettings):
     """アプリケーション設定"""

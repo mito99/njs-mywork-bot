@@ -1,7 +1,7 @@
 import logging
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 from slack_bolt import App, Say
@@ -12,11 +12,10 @@ from bot.services.chatbot.work_chatbot import WorkChatbot
 from bot.commands.work_commands import UsageCommand, WorkCommand
 from bot.tools.work_tools import (
     CreateAttendanceSheetTool,
-    GetAttendanceSheetTool,
-    ListAttendanceSheetsTool,
+    ListFilesTool,
     SendFileTool,
 )
-
+from langgraph.checkpoint.memory import MemorySaver
 logger = logging.getLogger(__name__)
 
 
@@ -48,6 +47,7 @@ def register_work_handlers(app: App, config: Config):
     llm = ChatGoogleGenerativeAI(
         model=config.google_gemini_model_name,
     )
+    memory = MemorySaver()
 
     @app.message(re.compile("^(?!cmd).*"))
     def handle_chatbot(message: dict[str, Any], say: Say, client: WebClient):
@@ -66,14 +66,14 @@ def register_work_handlers(app: App, config: Config):
             thread_ts=thread_ts,
         )
 
-        chatbot = WorkChatbot(config, llm)
+        chatbot = WorkChatbot(config, llm, memory)
         chatbot.add_tool(CreateAttendanceSheetTool())
-        chatbot.add_tool(GetAttendanceSheetTool())
+        # chatbot.add_tool(GetAttendanceSheetTool())
         chatbot.add_tool(SendFileTool(config, client, message, say))
-        chatbot.add_tool(ListAttendanceSheetsTool())
+        chatbot.add_tool(ListFilesTool(config))
 
         # ストリーミングで返答を送信
-        for chunk in chatbot.stream_chat(message_text, display_name):
+        for chunk in chatbot.stream_chat(message_text, display_name, thread_ts):
             client.chat_update(
                 channel=message["channel"],
                 ts=initial_response["ts"],

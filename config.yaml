@@ -7,7 +7,6 @@ application:
 
   storage:
     "勤怠":
-      path: ./storage/work_report
+      path: ./storage/local/kintai
     "有休":
-      path: ./storage/paid_leave
-
+      path: ./storage/local/yukyu

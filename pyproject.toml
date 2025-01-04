@@ -18,6 +18,8 @@ dependencies = [
     "langchain-core>=0.3.27",
     "langgraph>=0.2.60",
     "grpcio==1.60.1",
+    "langchain-community>=0.3.14",
+    "langchain>=0.3.14",
 ]
 
 [build-system]
