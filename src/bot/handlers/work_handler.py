@@ -75,14 +75,20 @@ def register_work_handlers(app: App, config: Config):
         chatbot.add_tool(ReceiveFileTool(config))
         chatbot.add_tool(DeleteStorageFileTool(config))
 
+        # 累積メッセージを保持する変数を追加
+        accumulated_message = ""
+        
         # ストリーミングで返答を送信
         for chunk in chatbot.stream_chat(
             current_message, chat_history, thread_ts
         ):
+            # チャンクを累積メッセージに追加
+            accumulated_message += chunk
+            
             client.chat_update(
                 channel=message["channel"],
                 ts=initial_response["ts"],
-                text=chunk,
+                text=accumulated_message,  # 累積されたメッセージを使用
             )
 
     @app.event({
