@@ -167,9 +167,9 @@ class ListFilesTool(BaseTool):
             return []
         return [os.path.basename(file) for file in result.stdout.strip().split("\n")]
 
-class DeleteFileTool(BaseTool):
-    name: ClassVar[str] = "delete_file"
-    description: ClassVar[str] = "指定されたファイルを削除します"
+class DeleteStorageFileTool(BaseTool):
+    name: ClassVar[str] = "delete_storage_file"
+    description: ClassVar[str] = "指定されたファイルをストレージから削除します"
 
     config: Optional[Config] = None
 
@@ -179,7 +179,7 @@ class DeleteFileTool(BaseTool):
 
     def _run(self, file_name: str, file_type: FileType) -> str:
         """
-        指定されたファイルを削除します。
+        指定されたファイルをストレージから削除します。
 
         Args:
             file_name (str): 削除するファイル名

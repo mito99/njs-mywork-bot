@@ -12,7 +12,7 @@ from bot.services.chatbot.work_chatbot import WorkChatbot
 from bot.commands.work_commands import UsageCommand, WorkCommand
 from bot.tools.work_tools import (
     CreateAttendanceSheetTool,
-    DeleteFileTool,
+    DeleteStorageFileTool,
     ListFilesTool,
     SendFileTool,
     ReceiveFileTool,
@@ -127,7 +127,7 @@ def register_work_handlers(app: App, config: Config):
         chatbot.add_tool(SendFileTool(config, client, message))
         chatbot.add_tool(ListFilesTool(config))
         chatbot.add_tool(ReceiveFileTool(config, message))
-        chatbot.add_tool(DeleteFileTool(config))
+        chatbot.add_tool(DeleteStorageFileTool(config))
 
         # ストリーミングで返答を送信
         for chunk in chatbot.stream_chat(
