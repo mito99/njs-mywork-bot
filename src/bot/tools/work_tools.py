@@ -28,7 +28,7 @@ class CreateAttendanceSheetTool(BaseTool):
         Returns:
             str: 作成された勤怠表のファイルパス
         """
-        return "storage/local/kintai.md"
+        return "storage/local/kintai/kintai.md"
 
 class SendFileTool(BaseTool):
     name: ClassVar[str] = "send_file"
@@ -92,37 +92,36 @@ class ReceiveFileTool(BaseTool):
     config: Optional[Config] = None
     message: Optional[dict[str, Any]] = None
 
-    def __init__(self, config: Config, message: dict[str, Any]):
+    def __init__(self, config: Config):
         super().__init__()
         self.config = config
-        self.message = message
 
-    def _run(self, file_type: FileType):
+    def _run(self, file_type: FileType, file_url: str, file_name: str):
         """
         Slackから指定されたファイルを受信し、指定されたストレージディレクトリに保存します。
 
         Args:
             file_type (FileType): ファイルの種類を示す列挙型
+            file_url (str): ファイルのダウンロードURL
+            file_name (str): 保存するファイル名
 
         Returns:
             str: 保存されたファイルの完全パス
 
         Raises:
             ValueError: 以下の場合に発生
-                - メッセージにファイルが添付されていない
-                - ファイルのダウンロードURLが取得できない
+                - file_urlが空の場合
+                - file_nameが空の場合
+                - ファイルのダウンロードに失敗した場合
         """
-        if self.message.get("files") and len(self.message["files"]) <= 0:
-            raise ValueError("ファイルがありません。")
-
-        file = self.message["files"][0]
-        file_url = file.get("url_private_download")
         if not file_url:
             raise ValueError("ファイルのURLが取得できません。")
 
-        save_file_name = file.get("name") 
+        if not file_name:
+            raise ValueError("ファイル名が取得できません。")
+
         dir_path = self.config.application.storage[file_type].path
-        save_path = os.path.join(dir_path, save_file_name)
+        save_path = os.path.join(dir_path, file_name)
 
         headers = {"Authorization": f"Bearer {self.config.slack_bot_token}"}
         response = requests.get(file_url, headers=headers)
@@ -130,7 +129,6 @@ class ReceiveFileTool(BaseTool):
             f.write(response.content)
 
         return save_path
-
 class ListFilesTool(BaseTool):
     name: ClassVar[str] = "list_files"
     description: ClassVar[str] = "ファイルの一覧を取得します"
