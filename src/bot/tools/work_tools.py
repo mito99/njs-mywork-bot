@@ -28,8 +28,18 @@ class CreateAttendanceSheetTool(BaseTool):
         Returns:
             str: 作成された勤怠表のファイルパス
         """
-        return "storage/local/kintai/kintai.md"
-
+        file_path = "storage/local/kintai/kintai.md"
+        
+        # ディレクトリが存在しない場合は作成
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        # 勤怠表のテンプレートを作成
+        template = "aiueo"       
+        # テンプレートをファイルに書き込み
+        with open(file_path, 'w', encoding='utf-8') as f:
+            f.write(template)
+        
+        return file_path
 class SendFileTool(BaseTool):
     name: ClassVar[str] = "send_file"
     description: ClassVar[str] = "指定されたファイルを送信します。"
