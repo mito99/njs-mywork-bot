@@ -12,8 +12,10 @@ from bot.services.chatbot.work_chatbot import WorkChatbot
 from bot.commands.work_commands import UsageCommand, WorkCommand
 from bot.tools.work_tools import (
     CreateAttendanceSheetTool,
+    DeleteFileTool,
     ListFilesTool,
     SendFileTool,
+    ReceiveFileTool,
 )
 from langgraph.checkpoint.memory import MemorySaver
 
@@ -122,8 +124,10 @@ def register_work_handlers(app: App, config: Config):
 
         chatbot = WorkChatbot(config, llm)
         chatbot.add_tool(CreateAttendanceSheetTool())
-        chatbot.add_tool(SendFileTool(config, client, message, say))
+        chatbot.add_tool(SendFileTool(config, client, message))
         chatbot.add_tool(ListFilesTool(config))
+        chatbot.add_tool(ReceiveFileTool(config, message))
+        chatbot.add_tool(DeleteFileTool(config))
 
         # ストリーミングで返答を送信
         for chunk in chatbot.stream_chat(
@@ -133,3 +137,18 @@ def register_work_handlers(app: App, config: Config):
                 ts=initial_response["ts"],
                 text=chunk,
             )
+
+    @app.event({
+        "type": "message",
+        "subtype": "message_changed"
+    })
+    def handle_message_changed(body, logger):
+        """
+        メッセージが編集された際のイベントを処理します
+        
+        Args:
+            body: イベントのペイロード
+            logger: ロガーインスタンス
+        """
+        logger.info(f"Message changed event received: {body}")
+        # 必要に応じて追加の処理をここに実装

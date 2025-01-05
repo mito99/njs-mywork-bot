@@ -37,20 +37,17 @@ class SendFileTool(BaseTool):
     config: Optional[Config] = None
     client: Optional[WebClient] = None
     message: Optional[dict[str, Any]] = None
-    say: Optional[Say] = None
 
     def __init__(
         self, 
         config: Optional[Config] = None, 
         client: Optional[WebClient] = None, 
         message: Optional[dict[str, Any]] = None, 
-        say: Optional[Say] = None,
     ):
         super().__init__()
         self.config = config
         self.client = client
         self.message = message
-        self.say = say
 
     def _run(self, file_name: str, file_type: FileType):
         """
@@ -94,27 +91,26 @@ class ReceiveFileTool(BaseTool):
 
     config: Optional[Config] = None
     message: Optional[dict[str, Any]] = None
-    say: Optional[Say] = None
 
-    def __init__(self, config: Config, message: dict[str, Any], say: Say):
+    def __init__(self, config: Config, message: dict[str, Any]):
         super().__init__()
         self.config = config
         self.message = message
-        self.say = say
 
-    def _run(self, file_name: str, file_type: FileType):
+    def _run(self, file_type: FileType):
         """
         Slackから指定されたファイルを受信し、指定されたストレージディレクトリに保存します。
 
         Args:
-            file_name (str): 保存するファイル名
             file_type (FileType): ファイルの種類を示す列挙型
 
         Returns:
             str: 保存されたファイルの完全パス
 
         Raises:
-            ValueError: ファイルが存在しない、またはファイルのURLが取得できない場合
+            ValueError: 以下の場合に発生
+                - メッセージにファイルが添付されていない
+                - ファイルのダウンロードURLが取得できない
         """
         if self.message.get("files") and len(self.message["files"]) <= 0:
             raise ValueError("ファイルがありません。")
@@ -124,9 +120,9 @@ class ReceiveFileTool(BaseTool):
         if not file_url:
             raise ValueError("ファイルのURLが取得できません。")
 
-        filename = file.get("name")
+        save_file_name = file.get("name") 
         dir_path = self.config.application.storage[file_type].path
-        save_path = os.path.join(dir_path, filename)
+        save_path = os.path.join(dir_path, save_file_name)
 
         headers = {"Authorization": f"Bearer {self.config.slack_bot_token}"}
         response = requests.get(file_url, headers=headers)
@@ -170,3 +166,42 @@ class ListFilesTool(BaseTool):
         if result.returncode != 0:
             return []
         return [os.path.basename(file) for file in result.stdout.strip().split("\n")]
+
+class DeleteFileTool(BaseTool):
+    name: ClassVar[str] = "delete_file"
+    description: ClassVar[str] = "指定されたファイルを削除します"
+
+    config: Optional[Config] = None
+
+    def __init__(self, config: Config):
+        super().__init__()
+        self.config = config
+
+    def _run(self, file_name: str, file_type: FileType) -> str:
+        """
+        指定されたファイルを削除します。
+
+        Args:
+            file_name (str): 削除するファイル名
+            file_type (FileType): ファイルの種類を示す列挙型
+
+        Returns:
+            str: 削除されたファイルのパス
+
+        Raises:
+            ValueError: 以下の場合に発生
+                - ファイルが存在しない
+                - ファイルの削除に失敗した
+        """
+        dir_path = self.config.application.storage[file_type].path
+        file_path = os.path.join(dir_path, file_name)
+
+        if not os.path.exists(file_path):
+            raise ValueError(f"ファイルが見つかりません: {file_path}")
+
+        try:
+            os.remove(file_path)
+            return file_path
+        except Exception as e:
+            logger.error(f"ファイルの削除に失敗しました。エラー: {e}")
+            raise ValueError(f"ファイルの削除に失敗しました。エラー: {e}")
