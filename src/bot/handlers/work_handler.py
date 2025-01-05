@@ -38,7 +38,7 @@ def register_work_handlers(app: App, config: Config):
             return
 
         # メッセージテキストを取得
-        text = message.get("text", "").strip()
+        text = message.get("text", "").replace("cmd", "", 1).strip()
         command = WorkCommand.create(text, config)
         if command is UsageCommand:
             command.execute(client, message, say)

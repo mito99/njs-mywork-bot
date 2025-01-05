@@ -73,10 +73,10 @@ class UsageCommand(WorkCommand):
         usage_message = "\n".join(
             [
                 (
-                    f"list {storage_type}\n"
-                    f"get {storage_type} <FILE_NAME>\n"
-                    f"put {storage_type}\n"
-                    f"delete {storage_type} <FILE_NAME>"
+                    f"cmd list {storage_type}\n"
+                    f"cmd get {storage_type} <FILE_NAME>\n"
+                    f"cmd put {storage_type}\n"
+                    f"cmd delete {storage_type} <FILE_NAME>"
                 )
                 for storage_type in storage_types
             ]
