@@ -16,11 +16,16 @@ from bot.tools.work_tools import (
     SendFileTool,
 )
 from langgraph.checkpoint.memory import MemorySaver
+
 logger = logging.getLogger(__name__)
 
 
 def register_work_handlers(app: App, config: Config):
     """メッセージ関連のイベントハンドラーを登録します。"""
+
+    llm = ChatGoogleGenerativeAI(
+        model=config.google_gemini_model_name,
+    )
 
     @app.message(re.compile("^cmd\s+.*"))
     def handle_command(message, say, client):
@@ -44,10 +49,49 @@ def register_work_handlers(app: App, config: Config):
             say(f"エラーが発生しました。\n{e}")
             return
 
-    llm = ChatGoogleGenerativeAI(
-        model=config.google_gemini_model_name,
-    )
-    memory = MemorySaver()
+    def _get_thread_history(client: WebClient, channel: str, thread_ts: str, limit: int = 10) -> list[dict[str, str]]:
+        """スレッドの履歴を取得する
+
+        Args:
+            client (WebClient): Slackクライアント
+            channel (str): チャンネルID
+            thread_ts (str): スレッドのタイムスタンプ
+            limit (int, optional): 取得するメッセージの上限. デフォルトは10.
+
+        Returns:
+            list[dict[str, str]]: メッセージ情報のリスト。各メッセージは以下の形式:
+                {
+                    "text": メッセージテキスト,
+                    "role": "assistant" または "user",
+                    "name": 発言者の表示名
+                }
+        """
+        try:
+            thread_messages = client.conversations_replies(
+                channel=channel,
+                ts=thread_ts,
+                limit=limit
+            )
+            messages = []
+            for msg in thread_messages["messages"]:
+                # ボットの発言かどうかを判定
+                is_bot = msg.get("bot_id") is not None
+                
+                # ユーザー情報を取得（ボットでない場合）
+                display_name = ""
+                if not is_bot:
+                    user_info = client.users_info(user=msg["user"])
+                    display_name = user_info["user"]["profile"]["display_name"]
+
+                messages.append({
+                    "text": msg["text"],
+                    "role": "assistant" if is_bot else "user",
+                    "name": display_name if not is_bot else "AI"
+                })
+            return messages
+        except Exception as e:
+            logger.error(f"スレッド履歴の取得に失敗しました: {e}")
+            return []
 
     @app.message(re.compile("^(?!cmd).*"))
     def handle_chatbot(message: dict[str, Any], say: Say, client: WebClient):
@@ -58,21 +102,32 @@ def register_work_handlers(app: App, config: Config):
         display_name = user_info["user"]["profile"]["display_name"]
         message_text = message["text"]
 
-        # 初回メッセージの送信
+        # スレッドのタイムスタンプを取得
         thread_ts = message.get("thread_ts", message["ts"])
+        
+        # スレッドの履歴を取得
+        history = _get_thread_history(
+            client=client,
+            channel=message["channel"],
+            thread_ts=thread_ts,
+            limit=10
+        )
+
+        # 初回メッセージの送信
         initial_response = client.chat_postMessage(
             channel=message["channel"],
             text=f"...",
             thread_ts=thread_ts,
         )
 
-        chatbot = WorkChatbot(config, llm, memory)
+        chatbot = WorkChatbot(config, llm)
         chatbot.add_tool(CreateAttendanceSheetTool())
         chatbot.add_tool(SendFileTool(config, client, message, say))
         chatbot.add_tool(ListFilesTool(config))
 
         # ストリーミングで返答を送信
-        for chunk in chatbot.stream_chat(message_text, display_name, thread_ts):
+        for chunk in chatbot.stream_chat(
+            message_text, display_name, thread_ts, history):
             client.chat_update(
                 channel=message["channel"],
                 ts=initial_response["ts"],
