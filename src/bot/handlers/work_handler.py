@@ -67,7 +67,7 @@ def register_work_handlers(app: App, config: Config):
         chat_history = _get_thread_history(client, message["channel"], thread_ts, limit=10)
         
         chatbot = WorkChatbot(llm)
-        chatbot.add_tool(CreateAttendanceSheetTool(config))
+        chatbot.add_tool(CreateAttendanceSheetTool(config, client, message))
         chatbot.add_tool(SendFileTool(config, client, message))
         chatbot.add_tool(ListFilesTool(config))
         chatbot.add_tool(ReceiveFileTool(config))
