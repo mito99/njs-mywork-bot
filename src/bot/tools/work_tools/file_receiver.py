@@ -23,6 +23,28 @@ class ReceiveFileTool(BaseTool):
         self.config = config
 
     def _run(self, file_type: FileType, file_url: str, file_name: str):
+        """
+        Slackからファイルを受信し、指定されたストレージディレクトリに保存します。
+
+        Args:
+            file_type (FileType): 保存するファイルの種類（ストレージカテゴリ）
+            file_url (str): Slackから取得したファイルのURL
+            file_name (str): 保存するファイルの名前
+
+        Returns:
+            str: 保存されたファイルのパス
+
+        Raises:
+            ValueError: ファイルのURLまたはファイル名が取得できない場合
+            requests.RequestException: ファイルのダウンロードに失敗した場合
+            IOError: ファイルの保存に失敗した場合
+
+        Note:
+            - Slackのボットトークンを使用してファイルをダウンロードします。
+            - ファイルは指定されたストレージディレクトリに保存されます。
+        """
+        logger.info(f"ReceiveFileTool: {file_type}, {file_url}, {file_name}")
+        
         if not file_url:
             raise ValueError("ファイルのURLが取得できません。")
 

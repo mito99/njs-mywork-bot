@@ -21,11 +21,10 @@ logger = logging.getLogger(__name__)
 
 def register_work_handlers(app: App, config: Config):
     """メッセージ関連のイベントハンドラーを登録します。"""
-
     llm = ChatGoogleGenerativeAI(
         model=config.google_gemini_model_name,
+        google_api_key=config.google_api_key,
     )
-
     @app.message(re.compile("^cmd\s+.*"))
     def handle_command(message, say, client):
         """コマンドの処理"""

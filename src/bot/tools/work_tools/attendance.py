@@ -37,6 +37,8 @@ class CreateAttendanceSheetTool(BaseTool):
              output_month: int, 
              attendance_file_name: str
     ) -> str:
+        logger.info(f"CreateAttendanceSheetTool: {user_name}, {output_year}, {output_month}, {attendance_file_name}")
+        
         # 出力年と出力月がfloatの場合があるのでintに変換
         output_year = int(output_year) if output_year else None
         output_month = int(output_month)

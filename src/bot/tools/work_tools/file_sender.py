@@ -31,6 +31,25 @@ class SendFileTool(BaseTool):
         self.message = message
 
     def _run(self, file_name: str, file_type: FileType):
+        """
+        指定されたファイルをSlackチャンネルに送信します。
+
+        Args:
+            file_name (str): 送信するファイルの名前
+            file_type (FileType): 送信するファイルの種類（ストレージカテゴリ）
+
+        Raises:
+            ValueError: Slack clientまたはmessageが設定されていない場合
+                        ファイルが見つからない場合
+                        ファイルサイズが0バイトの場合
+                        ファイル送信に失敗した場合
+
+        Note:
+            - ファイルは指定されたストレージディレクトリから取得されます。
+            - ファイルはSlackのスレッドに送信されます。
+        """
+        logger.info(f"SendFileTool: {file_name}, {file_type}")
+        
         if not self.client or not self.message:
             raise ValueError("Slack client or message is not configured")
         

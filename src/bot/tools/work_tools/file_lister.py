@@ -21,6 +21,22 @@ class ListFilesTool(BaseTool):
         self.config = config
 
     def _run(self, file_type: FileType) -> list[str]:
+        """
+        指定されたファイルタイプのディレクトリ内のファイル一覧を取得します。
+
+        Args:
+            file_type (FileType): 一覧を取得するファイルの種類（ストレージカテゴリ）
+
+        Returns:
+            list[str]: ディレクトリ内のファイル名のリスト。
+                       ディレクトリが存在しない、またはアクセスできない場合は空のリストを返します。
+
+        Note:
+            - ディレクトリ内のファイルのみを返し、サブディレクトリは除外します。
+            - ファイルの取得中にエラーが発生した場合は空のリストを返します。
+        """
+        logger.info(f"ListFilesTool: {file_type}")
+        
         dir_path = self.config.application.storage[file_type].path
         try:
             files = os.listdir(dir_path)

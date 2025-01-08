@@ -21,6 +21,21 @@ class DeleteStorageFileTool(BaseTool):
         self.config = config
 
     def _run(self, file_name: str, file_type: FileType) -> str:
+        """
+        指定されたファイルをストレージから削除します。
+
+        Args:
+            file_name (str): 削除するファイルの名前
+            file_type (FileType): 削除するファイルの種類（ストレージカテゴリ）
+
+        Returns:
+            str: 削除されたファイルのパス
+
+        Raises:
+            ValueError: ファイルが見つからない場合、または削除に失敗した場合
+        """
+        logger.info(f"DeleteStorageFileTool: {file_name}, {file_type}")
+        
         dir_path = self.config.application.storage[file_type].path
         file_path = os.path.join(dir_path, file_name)
 

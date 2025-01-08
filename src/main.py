@@ -25,6 +25,7 @@ def start_handler(app, app_token, max_retries=None):
 
 def main():
     config = load_config()
+    
     setup_logging(config.application.log_level)
     app = create_app(config)
 
