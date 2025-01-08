@@ -1,4 +1,4 @@
-from .attendance import CreateAttendanceSheetTool
+from .attendance import UpdateAttendanceSheetTool
 from .file_deleter import DeleteStorageFileTool
 from .file_lister import ListFilesTool
 from .file_receiver import ReceiveFileTool
@@ -7,7 +7,7 @@ from .types import FileType
 
 __all__ = [
     'FileType',
-    'CreateAttendanceSheetTool',
+    'UpdateAttendanceSheetTool',
     'SendFileTool',
     'ReceiveFileTool',
     'ListFilesTool',

@@ -12,9 +12,9 @@ from bot.config import Config
 from bot.handlers.validation import is_valid_message
 from bot.services.chatbot.work_chatbot import (AttachedFile, ChatMessage,
                                                WorkChatbot)
-from bot.tools.work_tools import (CreateAttendanceSheetTool,
-                                  DeleteStorageFileTool, ListFilesTool,
-                                  ReceiveFileTool, SendFileTool)
+from bot.tools.work_tools import (DeleteStorageFileTool, ListFilesTool,
+                                  ReceiveFileTool, SendFileTool,
+                                  UpdateAttendanceSheetTool)
 
 logger = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def register_work_handlers(app: App, config: Config):
         chat_history = _get_thread_history(client, message["channel"], thread_ts, limit=10)
         
         chatbot = WorkChatbot(llm)
-        chatbot.add_tool(CreateAttendanceSheetTool(config, client, message))
+        chatbot.add_tool(UpdateAttendanceSheetTool(config, client, message))
         chatbot.add_tool(SendFileTool(config, client, message))
         chatbot.add_tool(ListFilesTool(config))
         chatbot.add_tool(ReceiveFileTool(config))

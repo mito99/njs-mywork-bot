@@ -17,9 +17,13 @@ from .types import FileType
 
 logger = logging.getLogger(__name__)
 
-class CreateAttendanceSheetTool(BaseTool):
-    name: ClassVar[str] = "create_attendance_sheet"
-    description: ClassVar[str] = "勤怠表を新規作成します"
+class UpdateAttendanceSheetTool(BaseTool):
+    """
+    勤怠表を更新します。
+    """
+    
+    name: ClassVar[str] = "update_attendance_sheet"
+    description: ClassVar[str] = "勤怠表を更新します"
     
     config: Optional[Config] = None
     client: Optional[WebClient] = None
@@ -33,36 +37,59 @@ class CreateAttendanceSheetTool(BaseTool):
 
     def _run(self, 
              user_name: str, 
-             output_year: int | None, 
-             output_month: int, 
+             update_year: int | None, 
+             update_month: int, 
              attendance_file_name: str
     ) -> str:
-        logger.info(f"CreateAttendanceSheetTool: {user_name}, {output_year}, {output_month}, {attendance_file_name}")
+        """
+        勤怠ファイルを更新します。
+
+        Args:
+            user_name (str): 更新する対象の勤怠表の従業員名
+            update_year (int | None): 更新対象年。Noneの場合は自動的に決定されます
+            update_month (int): 更新対象月
+            attendance_file_name (str): 更新対象勤怠表のファイル名
+
+        Returns:
+            str: 作成された勤怠表のファイルパス
+
+        Note:
+            - 出力年が指定されていない場合、現在の月に基づいて自動的に決定されます
+            - 勤怠データはGoogleTimeCardReaderを使用して取得されます
+            - 勤怠表はExcelWriterを使用して作成されます
+        """
         
-        # 出力年と出力月がfloatの場合があるのでintに変換
-        output_year = int(output_year) if output_year else None
-        output_month = int(output_month)
+        logger.info(
+            "UpdateAttendanceSheetTool: "
+            f"{user_name}, {update_year}, {update_month}, {attendance_file_name}"
+        )
+        
+        # 更新対象年と更新対象月がfloatの場合があるのでintに変換
+        update_year = int(update_year) if update_year else None
+        update_month = int(update_month)
                 
-        # 出力月が現在の月より小さい場合は、前年を出力年とする
-        # 出力月が現在の月より大きい場合は、当年を出力年とする
-        if output_year is None:
-            if datetime.now().month < output_month:
-                output_year = datetime.now().year - 1
+        # 更新対象月が現在の月より小さい場合は、前年を更新対象年とする
+        # 更新対象月が現在の月より大きい場合は、当年を更新対象年とする
+        if update_year is None:
+            if datetime.now().month < update_month:
+                update_year = datetime.now().year - 1
             else:
-                output_year = datetime.now().year
+                update_year = datetime.now().year
         
         # 勤怠データを取得
-        timecard_data_list = self._get_timecard_data(output_year, output_month)
+        logger.info(f"UpdateAttendanceSheetTool: {update_year}, {update_month}")
+        timecard_data_list = self._get_timecard_data(update_year, update_month)
         
-        # 勤怠表ファイルを作成
-        output_path = self._create_attendance_file(
+        # 一時ディレクトリに勤怠表ファイルを作成
+        output_path = self._update_attendance_file(
             user_name=user_name,
             attendance_file_name=attendance_file_name,
-            output_month=output_month,
+            update_month=update_month,
             timecard_data_list=timecard_data_list
         )
 
-        # 作成した勤怠表を送信
+        # 更新した勤怠表を送信
+        logger.info(f"UpdateAttendanceSheetTool: {output_path}")
         self._send_attendance_file(output_path)
 
 
@@ -81,37 +108,38 @@ class CreateAttendanceSheetTool(BaseTool):
             self.client.files_upload_v2(
                 channel=self.message["channel"],
                 file=output_path,
-                initial_comment=f"作成した勤怠表を送ります。",
+                initial_comment=f"更新した勤怠表を送ります。",
                 thread_ts=thread_ts
             )
         except Exception as e:
             logger.error(f"ファイルの送信に失敗しました。エラー: {e}")
             raise ValueError(f"ファイルの送信に失敗しました。エラー: {e}")
         
-    def _create_attendance_file(
+    def _update_attendance_file(
         self,
         user_name: str,
         attendance_file_name: str,
-        output_month: int,
+        update_month: int,
         timecard_data_list: list[Any]
     ) -> str:
         attendance_dir_path = self.config.application.storage[FileType.ATTENDANCE].path
         attendance_file_path = os.path.join(attendance_dir_path, attendance_file_name)
         
-        output_path = f"{tempfile.mkdtemp()}/{attendance_file_name}"
+        # update_path = f"{tempfile.mkdtemp()}/{attendance_file_name}"
+        update_path = attendance_file_path
         try:
             employee = Employee.from_full_name(user_name)
             writer = ExcelWriter(attendance_file_path, employee)
-            writer.write_to_file(output_path, output_month, timecard_data_list)
-            return output_path
+            writer.write_to_file(update_path, update_month, timecard_data_list)
+            return update_path
         except Exception as e:
-            os.unlink(output_path)
+            os.unlink(update_path)
             logger.error(f"勤怠表ファイルの作成に失敗しました。エラー: {e}")
             raise ValueError(f"勤怠表ファイルの作成に失敗しました。エラー: {e}")
         
-    def _get_timecard_data(self, output_year: int, output_month: int) -> list[Any]:
+    def _get_timecard_data(self, update_year: int, update_month: int) -> list[Any]:
         # 勤怠の範囲は前月21日から当月20日まで
-        end_date = datetime(output_year, output_month, 20).date()
+        end_date = datetime(update_year, update_month, 20).date()
         start_date = (end_date - relativedelta(months=1)).replace(day=21)
         
         try:
