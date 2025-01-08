@@ -39,3 +39,5 @@ ENV/
 
 # Storage
 storage/*
+
+.auth/

@@ -6,17 +6,15 @@ from typing import Any, Optional
 from langchain_google_genai import ChatGoogleGenerativeAI
 from slack_bolt import App, Say
 from slack_sdk import WebClient
+
+from bot.commands.work_commands import UsageCommand, WorkCommand
 from bot.config import Config
 from bot.handlers.validation import is_valid_message
-from bot.services.chatbot.work_chatbot import WorkChatbot, ChatMessage, AttachedFile
-from bot.commands.work_commands import UsageCommand, WorkCommand
-from bot.tools.work_tools import (
-    CreateAttendanceSheetTool,
-    DeleteStorageFileTool,
-    ListFilesTool,
-    SendFileTool,
-    ReceiveFileTool,
-)
+from bot.services.chatbot.work_chatbot import (AttachedFile, ChatMessage,
+                                               WorkChatbot)
+from bot.tools.work_tools import (CreateAttendanceSheetTool,
+                                  DeleteStorageFileTool, ListFilesTool,
+                                  ReceiveFileTool, SendFileTool)
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +67,7 @@ def register_work_handlers(app: App, config: Config):
         chat_history = _get_thread_history(client, message["channel"], thread_ts, limit=10)
         
         chatbot = WorkChatbot(llm)
-        chatbot.add_tool(CreateAttendanceSheetTool())
+        chatbot.add_tool(CreateAttendanceSheetTool(config))
         chatbot.add_tool(SendFileTool(config, client, message))
         chatbot.add_tool(ListFilesTool(config))
         chatbot.add_tool(ReceiveFileTool(config))
@@ -83,7 +81,8 @@ def register_work_handlers(app: App, config: Config):
             current_message, chat_history, thread_ts
         ):
             # チャンクを累積メッセージに追加
-            accumulated_message += chunk
+            # accumulated_message += chunk
+            accumulated_message = chunk
             
             client.chat_update(
                 channel=message["channel"],
@@ -119,7 +118,7 @@ def register_work_handlers(app: App, config: Config):
 
         user_id = message["user"]
         user_info = client.users_info(user=user_id)
-        display_name = user_info["user"]["profile"]["display_name"]
+        real_name = user_info["user"]["profile"]["real_name"]
         message_text = message["text"]
 
         role = "assistant" if message.get("bot_id") else "user"
@@ -135,7 +134,7 @@ def register_work_handlers(app: App, config: Config):
     
         return ChatMessage(
             role=role,
-            name=display_name,
+            name=real_name,
             message=message_text,
             attached_files=attached_files
         )

@@ -1,12 +1,16 @@
-from enum import Enum
 import logging
 import os
+import tempfile
+from datetime import datetime
+from enum import Enum
 from typing import Any, ClassVar, Optional
-import subprocess
-from langchain_core.tools import BaseTool
-from pydantic import Field
+
 import requests
-from slack_bolt import Say
+from langchain_core.tools import BaseTool
+from njs_mywork_tools.attendance.models import Employee
+from njs_mywork_tools.attendance.reader import GoogleTimeCardReader
+from njs_mywork_tools.attendance.writer import ExcelWriter
+from pydantic import Field
 from slack_sdk import WebClient
 
 from bot.config import Config
@@ -20,26 +24,76 @@ class FileType(str, Enum):
 class CreateAttendanceSheetTool(BaseTool):
     name: ClassVar[str] = "create_attendance_sheet"
     description: ClassVar[str] = "勤怠表を新規作成します"
+    
+    config: Optional[Config] = None
 
-    def _run(self) -> str:
+    def __init__(self, config: Config):
+        super().__init__()
+        self.config = config
+
+    def _run(self, 
+             user_name: str, 
+             output_year: int | None, 
+             output_month: int, 
+             attendance_file_name: str
+    ) -> str:
         """
-        新しい勤怠表を作成し、そのファイルパスを返します。
+        指定されたユーザーの勤怠表を作成します。
+
+        Args:
+            user_name (str): ユーザフルネーム(例: 山田 太郎)
+            output_year (int|None): 出力年 (例: 2025)。
+            output_month (int): 出力月 (例: 1)
+            attendance_file_name (str): 勤怠表ファイル名
 
         Returns:
-            str: 作成された勤怠表のファイルパス
+            str: 作成された勤怠表ファイルのパス
         """
-        file_path = "storage/local/kintai/kintai.md"
         
-        # ディレクトリが存在しない場合は作成
-        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        # 出力年と出力月がfloatの場合があるのでintに変換
+        output_year = int(output_year) if output_year else None
+        output_month = int(output_month)
         
-        # 勤怠表のテンプレートを作成
-        template = "aiueo"       
-        # テンプレートをファイルに書き込み
-        with open(file_path, 'w', encoding='utf-8') as f:
-            f.write(template)
+        time_card_reader = GoogleTimeCardReader(
+            credentials_path=self.config.google_sheet.credentials_path,
+            spreadsheet_key=self.config.google_sheet.spreadsheet_key,
+            ssl_certificate_validation=self.config.google_sheet.ssl_certificate_validation,
+        )
         
-        return file_path
+        # 出力月が現在の月より小さい場合は、前年を出力年とする
+        # 出力月が現在の月より大きい場合は、当年を出力年とする
+        if output_year is None:
+            if datetime.now().month < output_month:
+                output_year = datetime.now().year - 1
+            else:
+                output_year = datetime.now().year
+        
+        # 勤怠の範囲は前月21日から当月20日まで
+        start_date = datetime(output_year, (output_month - 1) % 12 + 1, 21).date()
+        end_date = datetime(output_year, output_month, 20).date()
+        
+        # 勤怠データを取得
+        try:
+            timecard_data_list = time_card_reader.read_timecard_sheet(start_date, end_date)
+        except Exception as e:
+            logger.error(f"勤怠データの取得に失敗しました。エラー: {e}")
+            raise ValueError(f"勤怠データの取得に失敗しました。エラー: {e}")
+        
+        # 勤怠表ファイルを作成
+        attendance_dir_path = self.config.application.storage[FileType.ATTENDANCE].path
+        attendance_file_path = os.path.join(attendance_dir_path, attendance_file_name)
+        
+        output_path = f"{tempfile.mkdtemp()}/{attendance_file_name}"
+        try:
+            employee = Employee.from_full_name(user_name)
+            writer = ExcelWriter(attendance_file_path, employee)
+            writer.write_to_file(output_path, output_month, timecard_data_list)
+            return output_path
+        except Exception as e:
+            os.unlink(output_path)
+            logger.error(f"勤怠表ファイルの作成に失敗しました。エラー: {e}")
+            raise ValueError(f"勤怠表ファイルの作成に失敗しました。エラー: {e}")
+
 class SendFileTool(BaseTool):
     name: ClassVar[str] = "send_file"
     description: ClassVar[str] = "指定されたファイルを送信します。"
@@ -165,15 +219,13 @@ class ListFilesTool(BaseTool):
             - サブディレクトリ内のファイルは含まれません。
         """
         dir_path = self.config.application.storage[file_type].path
-        result = subprocess.run(
-            f"ls {dir_path}/*",
-            shell=True,
-            capture_output=True,
-            text=True
-        )
-        if result.returncode != 0:
+        try:
+            files = os.listdir(dir_path)
+            # ディレクトリ内のファイルのみを取得
+            files = [f for f in files if os.path.isfile(os.path.join(dir_path, f))]
+            return files
+        except OSError:
             return []
-        return [os.path.basename(file) for file in result.stdout.strip().split("\n")]
 
 class DeleteStorageFileTool(BaseTool):
     name: ClassVar[str] = "delete_storage_file"

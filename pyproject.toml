@@ -1,13 +1,15 @@
+[tool.hatch.metadata]
+allow-direct-references = true
+
 [project]
 name = "njs-mywork-bot"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-authors = [
-    { name = "mito99", email = "mito@live.jp" }
-]
+authors = [{ name = "mito99", email = "mito@live.jp" }]
 requires-python = ">=3.11"
 dependencies = [
+    # "njs-mywork-tools @ git+https://github.com/mito99/njs-mywork-tools.git",
     "pydantic-settings>=2.7.0",
     "pydantic>=2.10.3",
     "python-dotenv>=1.0.1",
@@ -23,8 +25,11 @@ dependencies = [
 ]
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src"]
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

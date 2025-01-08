@@ -4,13 +4,10 @@ from pprint import pprint
 from time import time
 from typing import Dict, List, Tuple, Type, Union
 
+from njs_mywork_tools.settings import GoogleSheetSetting
 from pydantic import BaseModel, Field
-from pydantic_settings import (
-    BaseSettings,
-    PydanticBaseSettingsSource,
-    SettingsConfigDict,
-    YamlConfigSettingsSource,
-)
+from pydantic_settings import (BaseSettings, PydanticBaseSettingsSource,
+                               SettingsConfigDict, YamlConfigSettingsSource)
 
 
 class StorageConfig(BaseModel):
@@ -19,8 +16,6 @@ class StorageConfig(BaseModel):
 
 class SlackConfig(BaseModel):
     allowed_users: List[str]
-
-
 
 class ApplicationConfig(BaseModel):
     log_level: str = "INFO"
@@ -32,7 +27,9 @@ class Config(BaseSettings):
 
     model_config = SettingsConfigDict(
         env_file=".env",
+        env_nested_delimiter="__",
         yaml_file="config.yaml",
+        yaml_file_encoding="utf-8",
         extra="ignore",
     )
 
@@ -41,9 +38,8 @@ class Config(BaseSettings):
     slack_signing_secret: str
     google_api_key: str
     google_gemini_model_name: str = "gemini-2.0-flash-exp"
-
+    google_sheet : GoogleSheetSetting
     application: ApplicationConfig = Field(default_factory=ApplicationConfig)
-
     startup_time: float = time()
 
     @classmethod
