@@ -1,51 +1,130 @@
-import json
-import os
-import time
+import asyncio
 
-import requests
+from slack_sdk.errors import SlackApiError
+from slack_sdk.web.async_client import AsyncWebClient
 
-HISTORY_URL = "https://slack.com/api/conversations.history"
-DELMSG_URL = 'https://slack.com/api/chat.delete'
-REPLIES_URL = "https://slack.com/api/conversations.replies" 
-SLACK_USER_TOKEN = os.getenv("SLACK_USER_TOKEN")
 
-def slack_delmsg(channel, ts):
-    headers = {'Authorization': 'Bearer ' + SLACK_USER_TOKEN,
-               'Content-Type': 'application/json; charset=utf-8'}
-    payload = {'channel': channel, 'ts': ts}
-    req = requests.post(DELMSG_URL, data=json.dumps(payload), headers=headers)
-    print(req.text)
+async def delete_thread_messages(client: AsyncWebClient, channel_id: str, thread_ts: str):
+    """スレッド内のメッセージを削除する
 
-def slack_history(channel_id):
-    header = {'Authorization': 'Bearer ' + SLACK_USER_TOKEN}
-    payload  = {"channel" : "" + channel_id}
-    res = requests.get(HISTORY_URL, headers=header, params=payload)
-    json_data = res.json()
-    messages = json_data["messages"]
-    return messages
+    Args:
+        client (AsyncWebClient): Slackクライアント
+        channel_id (str): チャネルID
+        thread_ts (str): スレッドの親メッセージのタイムスタンプ
+    """
+    try:
+        # スレッド内のメッセージを取得
+        result = await client.conversations_replies(
+            channel=channel_id,
+            ts=thread_ts
+        )
+        
+        if not result["ok"]:
+            print(f"Error fetching thread messages: {result['error']}")
+            return
+            
+        # スレッド内の各メッセージを削除
+        for msg in result.get("messages", []):
+            try:
+                await client.chat_delete(
+                    channel=channel_id,
+                    ts=msg["ts"]
+                )
+                print(f"Deleted thread message: {msg['ts']}")
+                await asyncio.sleep(1)
+            except SlackApiError as e:
+                print(f"Error deleting thread message {msg['ts']}: {e.response['error']}")
 
-def slack_replies(channel_id, thread_id):
-    header={'Authorization': 'Bearer ' + SLACK_USER_TOKEN}
-    payload  = {"channel" : "" + channel_id, "ts" : "" + thread_id}
-    res = requests.get(REPLIES_URL, headers=header, params=payload)
-    json_data = res.json()
-    messages = json_data["messages"]
-    return messages
+    except SlackApiError as e:
+        print(f"Error fetching thread: {e.response['error']}")
 
-def main():
-    # チャンネルIDをコンソールから入力
-    channel_id = input("削除するチャンネルのIDを入力してください: ")
+async def delete_all_messages(channel_id: str, token: str):
+    """指定されたチャネル内の全メッセージを削除する
+
+    Args:
+        channel_id (str): メッセージを削除するチャネルのID
+        token (str): Slackのボットトークン
+    """
+    client = AsyncWebClient(token=token)
     
-    mes_history = slack_history(channel_id)
-    for i in mes_history:
-        print(i["ts"])
-        mes_replies = slack_replies(channel_id, i["ts"])
-        for j in mes_replies:
-            print("j_" + j["ts"])
-            slack_delmsg(channel_id, j["ts"])
-            time.sleep(0.5)
-        slack_delmsg(channel_id, i["ts"])
-        time.sleep(0.5)
+    try:
+        # メッセージの取得と削除を繰り返す
+        cursor = None
+        while True:
+            # チャネル履歴を取得
+            result = await client.conversations_history(
+                channel=channel_id,
+                cursor=cursor,
+                limit=100  # 一度に取得するメッセージ数
+            )
+            
+            if not result["ok"]:
+                print(f"Error fetching messages: {result['error']}")
+                break
+                
+            messages = result.get("messages", [])
+            if not messages:
+                break
+                
+            # 各メッセージを削除
+            for msg in messages:
+                # スレッドの親メッセージの場合、スレッド内のメッセージも削除
+                if msg.get("thread_ts") == msg.get("ts"):
+                    await delete_thread_messages(client, channel_id, msg["ts"])
+                
+                try:
+                    await client.chat_delete(
+                        channel=channel_id,
+                        ts=msg["ts"]
+                    )
+                    print(f"Deleted message: {msg['ts']}")
+                    await asyncio.sleep(1)
+                except SlackApiError as e:
+                    print(f"Error deleting message {msg['ts']}: {e.response['error']}")
+            
+            # 次のページがあるか確認
+            cursor = result.get("response_metadata", {}).get("next_cursor")
+            if not cursor:
+                break
+            
+        print("Message deletion completed")
+        
+    except SlackApiError as e:
+        print(f"Error: {e.response['error']}")
+
+async def main():
+    # 環境変数から設定を読み込む
+    import os
+
+    from dotenv import load_dotenv
+    
+    load_dotenv()
+    
+    SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
+    SLACK_USER_TOKEN = os.getenv("SLACK_USER_TOKEN")
+    
+    if not SLACK_BOT_TOKEN:
+        print("Please set SLACK_BOT_TOKEN in .env file")
+        exit(1)
+        
+    if not SLACK_USER_TOKEN:
+        print("Please set SLACK_USER_TOKEN in .env file")
+        exit(1)
+    
+    # ユーザーにチャンネルIDの入力を求める
+    channel_id = input("削除対象のチャンネルIDを入力してください: ")
+    
+    # 入力確認
+    confirm = input(f"チャンネル {channel_id} のメッセージをすべて削除します。よろしいですか？(y/N): ")
+    if confirm.lower() != 'y':
+        print("処理を中止しました。")
+        exit(0)
+    
+    # BOTメッセージの削除
+    await delete_all_messages(channel_id, SLACK_BOT_TOKEN)
+    
+    # ユーザーメッセージの削除
+    await delete_all_messages(channel_id, SLACK_USER_TOKEN)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())
