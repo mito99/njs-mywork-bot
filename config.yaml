@@ -10,3 +10,7 @@ application:
       path: ./storage/local/kintai
     "有休":
       path: ./storage/local/yukyu
+    "BACKUP":
+      path: ./storage/local/backup
+    "LOG":
+      path: ./logs

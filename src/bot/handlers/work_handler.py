@@ -86,12 +86,12 @@ def register_work_handlers(app: App, config: Config):
             client.chat_update(
                 channel=message["channel"],
                 ts=initial_response["ts"],
-                text=accumulated_message,  # 累積されたメッセージを使用
+                text=accumulated_message,  
             )
 
     @app.event({
         "type": "message",
-        "subtype": "message_changed"
+        "subtype": ["message_changed", "message_deleted"]
     })
     def handle_message_changed(body, logger):
         """
@@ -101,7 +101,7 @@ def register_work_handlers(app: App, config: Config):
             body: イベントのペイロード
             logger: ロガーインスタンス
         """
-        logger.info(f"Message changed event received: {body}")
+        logger.debug(f"Message changed event received: {body}")
         # 必要に応じて追加の処理をここに実装
 
     def _create_chat_message(message: dict, client: WebClient) -> ChatMessage:

@@ -125,7 +125,10 @@ class UpdateAttendanceSheetTool(BaseTool):
         attendance_dir_path = self.config.application.storage[FileType.ATTENDANCE].path
         attendance_file_path = os.path.join(attendance_dir_path, attendance_file_name)
         
-        # update_path = f"{tempfile.mkdtemp()}/{attendance_file_name}"
+        # バックアップファイルを作成
+        from bot.tools.work_tools import backup_file
+        backup_file(attendance_file_path)
+        
         update_path = attendance_file_path
         try:
             employee = Employee.from_full_name(user_name)
