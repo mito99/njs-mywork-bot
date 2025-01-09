@@ -3,7 +3,8 @@ import shutil
 
 from bot.config import load_config
 
-from .attendance import UpdateAttendanceSheetTool
+from .attendance import SubmitAttendanceSheetTool, UpdateAttendanceSheetTool
+from .datetime_tool import GetCurrentDateTimeTool
 from .file_deleter import DeleteStorageFileTool
 from .file_lister import ListFilesTool
 from .file_receiver import ReceiveFileTool
@@ -17,6 +18,8 @@ __all__ = [
     'ReceiveFileTool',
     'ListFilesTool',
     'DeleteStorageFileTool',
+    'SubmitAttendanceSheetTool',
+    'GetCurrentDateTimeTool',
 ] 
 
 config = load_config()

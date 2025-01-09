@@ -112,7 +112,8 @@ async def main():
         exit(1)
     
     # ユーザーにチャンネルIDの入力を求める
-    channel_id = input("削除対象のチャンネルIDを入力してください: ")
+    #channel_id = input("削除対象のチャンネルIDを入力してください: ")
+    channel_id = os.getenv("SLACK_ROBOT_CHANNEL_ID")
     
     # 入力確認
     confirm = input(f"チャンネル {channel_id} のメッセージをすべて削除します。よろしいですか？(y/N): ")

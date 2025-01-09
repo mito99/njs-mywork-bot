@@ -155,3 +155,48 @@ class UpdateAttendanceSheetTool(BaseTool):
         except Exception as e:
             logger.error(f"勤怠データの取得に失敗しました。エラー: {e}")
             raise ValueError(f"勤怠データの取得に失敗しました。エラー: {e}")
+        
+        
+        
+class SubmitAttendanceSheetTool(BaseTool):
+    """
+    勤怠表を提出します。
+    """
+    
+    name: ClassVar[str] = "submit_attendance_sheet"
+    description: ClassVar[str] = "勤怠表を提出します"
+    
+    update_attendance_tool: Optional[UpdateAttendanceSheetTool] = None
+    
+    def __init__(self, config: Config, client: WebClient, message: dict[str, Any]):
+        super().__init__()
+        self.update_attendance_tool = UpdateAttendanceSheetTool(config, client, message)
+
+    def _run(self, 
+             user_name: str, 
+             update_year: int | None, 
+             update_month: int, 
+             attendance_file_name: str
+    ) -> str:
+        """
+        勤怠表を更新し、提出するためのメソッドです。
+
+        Args:
+            user_name (str): 提出する対象の従業員名
+            update_year (int | None): 提出対象年。Noneの場合は自動的に決定されます
+            update_month (int): 提出対象月
+            attendance_file_name (str): 提出する勤怠表のファイル名
+
+        Returns:
+            str: 更新・提出された勤怠表のファイルパス
+
+        Note:
+            - UpdateAttendanceSheetToolを使用して勤怠表を更新します
+            - 更新された勤怠表は自動的に提出されます
+        """
+        return self.update_attendance_tool._run(
+            user_name=user_name,
+            update_year=update_year,
+            update_month=update_month,
+            attendance_file_name=attendance_file_name
+        )
