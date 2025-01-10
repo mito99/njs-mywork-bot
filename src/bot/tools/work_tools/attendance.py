@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import tempfile
@@ -9,7 +10,8 @@ from langchain_core.tools import BaseTool
 from njs_mywork_tools.attendance.models import Employee
 from njs_mywork_tools.attendance.reader import GoogleTimeCardReader
 from njs_mywork_tools.attendance.writer import ExcelWriter
-from slack_sdk import WebClient
+from slack_sdk.web import WebClient
+from slack_sdk.web.async_client import AsyncWebClient
 
 from bot.config import Config
 
@@ -26,16 +28,44 @@ class UpdateAttendanceSheetTool(BaseTool):
     description: ClassVar[str] = "勤怠表を更新します"
     
     config: Optional[Config] = None
-    client: Optional[WebClient] = None
+    client: Optional[AsyncWebClient] = None
     message: Optional[dict[str, Any]] = None
 
-    def __init__(self, config: Config, client: WebClient, message: dict[str, Any]):
+    def __init__(self, config: Config, client: AsyncWebClient, message: dict[str, Any]):
         super().__init__()
         self.config = config
         self.client = client
         self.message = message
-
+        
     def _run(self, 
+             user_name: str, 
+             update_year: int | None, 
+             update_month: int, 
+             attendance_file_name: str
+    ) -> str:
+        """
+        勤怠表の更新処理を実行するメソッド。
+
+        Args:
+            user_name (str): 更新対象の従業員名
+            update_year (int | None): 更新対象の年。Noneの場合は自動的に決定
+            update_month (int): 更新対象の月
+            attendance_file_name (str): 更新する勤怠表のファイル名
+
+        Returns:
+            str: 更新された勤怠表のファイルパス
+
+        Note:
+            - 非同期メソッド _arun を同期的に実行するためのラッパーメソッド
+            - asyncio.run() を使用して非同期メソッドを同期的に実行
+            - エラーハンドリングは _arun メソッド内で行われる
+
+        Raises:
+            ValueError: 勤怠表の更新中に発生する可能性のある例外
+        """
+        asyncio.run(self._arun(user_name, update_year, update_month, attendance_file_name))
+
+    async def _arun(self, 
              user_name: str, 
              update_year: int | None, 
              update_month: int, 
@@ -90,10 +120,10 @@ class UpdateAttendanceSheetTool(BaseTool):
 
         # 更新した勤怠表を送信
         logger.info(f"UpdateAttendanceSheetTool: {output_path}")
-        self._send_attendance_file(output_path)
+        await self._send_attendance_file(output_path)
 
 
-    def _send_attendance_file(self, output_path: str) -> None:
+    async def _send_attendance_file(self, output_path: str) -> None:
         """
         作成した勤怠表ファイルをSlackチャンネルに送信します。
 
@@ -105,7 +135,7 @@ class UpdateAttendanceSheetTool(BaseTool):
         """
         try:
             thread_ts = self.message.get("ts")
-            self.client.files_upload_v2(
+            await self.client.files_upload_v2(
                 channel=self.message["channel"],
                 file=output_path,
                 initial_comment=f"更新した勤怠表を送ります。",

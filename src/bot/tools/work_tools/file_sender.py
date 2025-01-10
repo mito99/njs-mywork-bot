@@ -1,9 +1,10 @@
+import asyncio
 import logging
 import os
 from typing import Any, ClassVar, Optional
 
 from langchain_core.tools import BaseTool
-from slack_sdk import WebClient
+from slack_sdk.web.async_client import AsyncWebClient
 
 from bot.config import Config
 
@@ -16,13 +17,13 @@ class SendFileTool(BaseTool):
     description: ClassVar[str] = "指定されたファイルを送信します。"
 
     config: Optional[Config] = None
-    client: Optional[WebClient] = None
+    client: Optional[AsyncWebClient] = None
     message: Optional[dict[str, Any]] = None
 
     def __init__(
         self, 
         config: Optional[Config] = None, 
-        client: Optional[WebClient] = None, 
+        client: Optional[AsyncWebClient] = None, 
         message: Optional[dict[str, Any]] = None, 
     ):
         super().__init__()
@@ -31,6 +32,24 @@ class SendFileTool(BaseTool):
         self.message = message
 
     def _run(self, file_name: str, file_type: FileType):
+        """
+        指定されたファイルをSlackに送信するためのメソッド。
+
+        Args:
+            file_name (str): 送信するファイルの名前
+            file_type (FileType): 送信するファイルの種類（ストレージカテゴリ）
+
+        Note:
+            - 非同期メソッド _arun を実行するためのラッパーメソッド
+            - asyncio.run() を使用して非同期メソッドを同期的に実行
+            - エラーハンドリングは _arun メソッド内で行われる
+
+        Raises:
+            ValueError: ファイル送信中に発生する可能性のある例外
+        """
+        asyncio.run(self._arun(file_name, file_type))
+
+    async def _arun(self, file_name: str, file_type: FileType):
         """
         指定されたファイルをSlackチャンネルに送信します。
 
@@ -65,7 +84,7 @@ class SendFileTool(BaseTool):
 
         try:
             thread_ts = self.message.get("ts")
-            self.client.files_upload_v2(
+            await self.client.files_upload_v2(
                 channel=self.message["channel"],
                 file=resolved_file_path,
                 initial_comment=f"{file_type}/{file_name}を送ります。",

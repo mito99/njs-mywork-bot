@@ -4,7 +4,7 @@ from pprint import pprint
 from time import time
 from typing import Dict, List, Tuple, Type, Union
 
-from njs_mywork_tools.settings import GoogleSheetSetting
+from njs_mywork_tools.settings import GoogleSheetSetting, SurrealDBSetting
 from pydantic import BaseModel, Field
 from pydantic_settings import (BaseSettings, PydanticBaseSettingsSource,
                                SettingsConfigDict, YamlConfigSettingsSource)
@@ -39,6 +39,7 @@ class Config(BaseSettings):
     google_api_key: str
     google_gemini_model_name: str = "gemini-2.0-flash-exp"
     google_sheet : GoogleSheetSetting
+    surrealdb: SurrealDBSetting
     application: ApplicationConfig = Field(default_factory=ApplicationConfig)
     startup_time: float = time()
 

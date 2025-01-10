@@ -1,37 +1,31 @@
+import asyncio
 import logging
 from time import sleep
 
-from slack_bolt.adapter.socket_mode import SocketModeHandler
+from njs_mywork_tools.mail import MailWatcher
 
-from bot.app import create_app
-from bot.config import load_config
+from bot.config import Config, load_config
+from bot.slack_app import create_app, start_socket_mode
 from bot.utils.logging import setup_logging
 
 
-def start_handler(app, app_token, max_retries=None):
-    while True:
-        try:
-            handler = SocketModeHandler(app, app_token)
-            handler.start()
-        except Exception as e:
-            logging.error(f"Socket Mode接続エラー: {e}")
-            if max_retries is not None:
-                max_retries -= 1
-                if max_retries <= 0:
-                    raise
-            logging.info("5秒後に再接続を試みます...")
-            sleep(5)
+async def subscribe_mail(config: Config):
+    watcher = await MailWatcher.start(config.surrealdb)
+    async for mail in watcher.watch_mails():
+        print(mail)
 
-
-def main():
+async def main():
     config = load_config()
     
     setup_logging(config.application.log_level)
     app = create_app(config)
 
-    # 再接続ロジックを含むハンドラーの起動
-    start_handler(app, config.slack_app_token)
+    # メール監視のタスクとして実行
+    task1 = asyncio.create_task(subscribe_mail(config))
+    # Slackのソケットモードを起動
+    task2 = asyncio.create_task(start_socket_mode(app, config))
 
+    await asyncio.gather(task1, task2)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

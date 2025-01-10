@@ -4,8 +4,9 @@ from pathlib import Path
 from typing import Any, Optional
 
 from langchain_google_genai import ChatGoogleGenerativeAI
-from slack_bolt import App, Say
-from slack_sdk import WebClient
+from slack_bolt import Say
+from slack_bolt.async_app import AsyncApp
+from slack_sdk.web.async_client import AsyncWebClient
 
 from bot.commands.work_commands import UsageCommand, WorkCommand
 from bot.config import Config
@@ -21,14 +22,14 @@ from bot.tools.work_tools import (DeleteStorageFileTool,
 logger = logging.getLogger(__name__)
 
 
-def register_work_handlers(app: App, config: Config):
+def register_work_handlers(app: AsyncApp, config: Config):
     """メッセージ関連のイベントハンドラーを登録します。"""
     llm = ChatGoogleGenerativeAI(
         model=config.google_gemini_model_name,
         google_api_key=config.google_api_key,
     )
     @app.message(re.compile("^cmd\s+.*"))
-    def handle_command(message, say, client):
+    async def handle_command(message, say, client):
         """コマンドの処理"""
 
         # メッセージの検証を行う
@@ -50,22 +51,25 @@ def register_work_handlers(app: App, config: Config):
             return
 
     @app.message(re.compile("^(?!cmd).*"))
-    def handle_chatbot(message: dict[str, Any], say: Say, client: WebClient):
+    async def handle_chatbot(message: dict[str, Any], say: Say, client: AsyncWebClient):
         """チャットボットの処理"""
 
         # スレッドのタイムスタンプを取得
         thread_ts = message.get("thread_ts", message["ts"])
         
-        # 初回メッセージの送信
-        initial_response = client.chat_postMessage(
+        # ユーザー情報を非同期で取得
+        user_info = await client.users_info(user=message["user"])
+        
+        # 初回メッセージの送信を非同期で実行
+        initial_response = await client.chat_postMessage(
             channel=message["channel"],
             text="...",
             thread_ts=thread_ts,
         )
         
-        # 現在のメッセージをChatMessageに変換
-        current_message = _create_chat_message(message, client)
-        chat_history = _get_thread_history(client, message["channel"], thread_ts, limit=10)
+        # 現在のメッセージをChatMessageに変換（非同期関数に変更）
+        current_message = await _create_chat_message(message, client)
+        chat_history = await _get_thread_history(client, message["channel"], thread_ts, limit=10)
         
         chatbot = WorkChatbot(llm)
         chatbot.add_tool(UpdateAttendanceSheetTool(config, client, message))
@@ -79,15 +83,14 @@ def register_work_handlers(app: App, config: Config):
         # 累積メッセージを保持する変数を追加
         accumulated_message = ""
         
-        # ストリーミングで返答を送信
-        for chunk in chatbot.stream_chat(
+        # ストリーミングで返答を送信（非同期で処理）
+        async for chunk in chatbot.stream_chat(
             current_message, chat_history, thread_ts
         ):
             # チャンクを累積メッセージに追加
-            # accumulated_message += chunk
-            accumulated_message = chunk
+            accumulated_message += chunk
             
-            client.chat_update(
+            await client.chat_update(
                 channel=message["channel"],
                 ts=initial_response["ts"],
                 text=accumulated_message,  
@@ -97,7 +100,7 @@ def register_work_handlers(app: App, config: Config):
         "type": "message",
         "subtype": ["message_changed", "message_deleted"]
     })
-    def handle_message_changed(body, logger):
+    async def handle_message_changed(body, logger):
         """
         メッセージが編集された際のイベントを処理します
         
@@ -108,19 +111,20 @@ def register_work_handlers(app: App, config: Config):
         logger.debug(f"Message changed event received: {body}")
         # 必要に応じて追加の処理をここに実装
 
-    def _create_chat_message(message: dict, client: WebClient) -> ChatMessage:
+    async def _create_chat_message(message: dict, client: AsyncWebClient) -> ChatMessage:
         """SlackメッセージからChatMessageインスタンスを生成します。
 
         Args:
             message (dict): Slackメッセージオブジェクト
-            client (WebClient): Slackクライアント
+            client (AsyncWebClient): 非同期Slackクライアント
 
         Returns:
             ChatMessage: 生成されたChatMessageインスタンス
         """
 
         user_id = message["user"]
-        user_info = client.users_info(user=user_id)
+        # users_infoを非同期で取得
+        user_info = await client.users_info(user=user_id)
         real_name = user_info["user"]["profile"]["real_name"]
         message_text = message["text"]
 
@@ -134,7 +138,6 @@ def register_work_handlers(app: App, config: Config):
             for file in message.get("files", [])
         ]
 
-    
         return ChatMessage(
             role=role,
             name=real_name,
@@ -142,11 +145,11 @@ def register_work_handlers(app: App, config: Config):
             attached_files=attached_files
         )
 
-    def _get_thread_history(client: WebClient, channel: str, thread_ts: str, limit: int = 10) -> list[ChatMessage]:
+    async def _get_thread_history(client: AsyncWebClient, channel: str, thread_ts: str, limit: int = 10) -> list[ChatMessage]:
         """スレッドの履歴を取得する
 
         Args:
-            client (WebClient): Slackクライアント
+            client (AsyncWebClient): 非同期Slackクライアント
             channel (str): チャンネルID
             thread_ts (str): スレッドのタイムスタンプ
             limit (int, optional): 取得するメッセージの上限. デフォルトは10.
@@ -155,7 +158,7 @@ def register_work_handlers(app: App, config: Config):
             list[ChatMessage]: ChatMessageオブジェクトのリスト
         """
         try:
-            thread_messages = client.conversations_replies(
+            thread_messages = await client.conversations_replies(
                 channel=channel,
                 ts=thread_ts,
                 limit=limit

@@ -1,5 +1,5 @@
 import logging
-from typing import Iterator
+from typing import AsyncIterator, Iterator
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -51,23 +51,27 @@ class WorkChatbot:
     def add_tool(self, tool: BaseTool):
         self.tools.append(tool)
 
-    def stream_chat(self, message: ChatMessage, history: list[ChatMessage], thread_ts: str) -> Iterator[str]:
+    async def stream_chat(self, message: ChatMessage, history: list[ChatMessage], thread_ts: str) -> AsyncIterator[str]:
         # ユーザのメッセージ履歴を取得
         agent = create_react_agent(
             self.llm,
             self.tools,
         )
         
+        resolved_attached_files = [await file for file in message.attached_files]
         str_attached_files = "\n".join(
             [ 
                 f" - {file.model_dump_json()}" 
-                for file in message.attached_files
+                for file in resolved_attached_files
             ]
         )
+        
+        # 非同期で取得されたhistoryを同期的に処理するために修正
+        resolved_history = [await hist for hist in history]
         str_user_history = "\n".join(
             [
                 f" - {msg.model_dump_json()}" 
-                for msg in history
+                for msg in resolved_history
             ]
         )
 
