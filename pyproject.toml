@@ -9,7 +9,7 @@ readme = "README.md"
 authors = [{ name = "mito99", email = "mito@live.jp" }]
 requires-python = ">=3.11"
 dependencies = [
-    # "njs-mywork-tools @ git+https://github.com/mito99/njs-mywork-tools.git",
+    "njs-mywork-tools @ git+https://github.com/mito99/njs-mywork-tools.git",
     "pydantic-settings>=2.7.0",
     "pydantic>=2.10.3",
     "python-dotenv>=1.0.1",

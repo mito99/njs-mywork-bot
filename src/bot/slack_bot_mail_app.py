@@ -1,6 +1,7 @@
 import logging
 
 from njs_mywork_tools.mail import MailWatcher
+from njs_mywork_tools.mail.models.message import MailMessage
 from slack_bolt.async_app import AsyncApp
 
 from bot.config import Config
@@ -19,11 +20,11 @@ class SlackBotMailApp:
         watcher = await MailWatcher.start(self.config.surrealdb)
         async for mail in watcher.watch_mails():
             try:
-                action = mail["action"]
-                if action != "CREATE":
-                    continue
+                # action = mail["action"]
+                # if action != "CREATE":
+                #     continue
                 
-                mail_msg = mail["mail_msg"]
+                mail_msg: MailMessage = mail["mail_msg"]
                 if mail_msg is None:
                     logger.error("メールが取得できない")
                     continue
@@ -33,6 +34,7 @@ class SlackBotMailApp:
                     continue
                 
                 summary = summarize_mail_chatbot.invoke(mail_msg)
+                
                 result = await self.app.client.chat_postMessage(
                     channel=self.channel_id, 
                     text=(
