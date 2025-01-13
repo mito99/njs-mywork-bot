@@ -13,14 +13,15 @@ from pydantic_settings import (BaseSettings, PydanticBaseSettingsSource,
 class StorageConfig(BaseModel):
     path: str
 
-
-class SlackConfig(BaseModel):
-    allowed_users: List[str]
+class SlackBotConfig(BaseModel):
+    bot_token: str
+    app_token: str
+    signing_secret: str
+    channel_id: str
 
 class ApplicationConfig(BaseModel):
     log_level: str = "INFO"
     storage: Dict[str, StorageConfig] = Field(default_factory=dict)
-    slack: SlackConfig = Field(default_factory=SlackConfig)
 
 class Config(BaseSettings):
     """アプリケーション設定"""
@@ -33,15 +34,25 @@ class Config(BaseSettings):
         extra="ignore",
     )
 
-    slack_bot_token: str
-    slack_app_token: str
-    slack_signing_secret: str
+    slack_user_token: str
+    slack_bot_task: SlackBotConfig = Field(default_factory=SlackBotConfig)
+    slack_bot_mail: SlackBotConfig = Field(default_factory=SlackBotConfig)
+    
     google_api_key: str
     google_gemini_model_name: str = "gemini-2.0-flash-exp"
     google_sheet : GoogleSheetSetting
     surrealdb: SurrealDBSetting
     application: ApplicationConfig = Field(default_factory=ApplicationConfig)
     startup_time: float = time()
+    
+    ignore_mail_addresses: str
+    
+    def is_ignore_mail(self, mail_address: str) -> bool:
+        ignore_mail_addresses = self.ignore_mail_addresses.split(",")
+        for ignore_mail_address in ignore_mail_addresses:
+            if ignore_mail_address in mail_address:
+                return True
+        return False
 
     @classmethod
     def settings_customise_sources(

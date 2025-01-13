@@ -1,10 +1,6 @@
 application:
   log_level: INFO
 
-  slack:
-    allowed_users:
-      - U085CTDATNJ
-
   storage:
     "勤怠":
       path: ./storage/local/kintai

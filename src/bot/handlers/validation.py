@@ -23,10 +23,4 @@ def is_valid_message(message: dict, config: Config) -> bool:
         )
         return False
 
-    user_id = message["user"]
-    allowed_users = config.application.slack.allowed_users
-    if user_id not in allowed_users:
-        logger.info(f"許可されていないユーザーからのメッセージ: {user_id}")
-        return False
-
     return True
