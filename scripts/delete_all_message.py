@@ -100,32 +100,19 @@ async def main():
     
     load_dotenv()
     
-    SLACK_BOT_TOKEN = os.getenv("SLACK_BOT_TOKEN")
-    SLACK_USER_TOKEN = os.getenv("SLACK_USER_TOKEN")
     
-    if not SLACK_BOT_TOKEN:
-        print("Please set SLACK_BOT_TOKEN in .env file")
-        exit(1)
-        
-    if not SLACK_USER_TOKEN:
-        print("Please set SLACK_USER_TOKEN in .env file")
-        exit(1)
-    
-    # ユーザーにチャンネルIDの入力を求める
-    #channel_id = input("削除対象のチャンネルIDを入力してください: ")
-    channel_id = os.getenv("SLACK_ROBOT_CHANNEL_ID")
-    
-    # 入力確認
-    confirm = input(f"チャンネル {channel_id} のメッセージをすべて削除します。よろしいですか？(y/N): ")
-    if confirm.lower() != 'y':
-        print("処理を中止しました。")
-        exit(0)
-    
-    # BOTメッセージの削除
-    await delete_all_messages(channel_id, SLACK_BOT_TOKEN)
-    
-    # ユーザーメッセージの削除
-    await delete_all_messages(channel_id, SLACK_USER_TOKEN)
+    user_token = os.getenv("SLACK_USER_TOKEN")
+    task_channel_id = os.getenv("SLACK_BOT_TASK__CHANNEL_ID")
+    task_bot_token = os.getenv("SLACK_BOT_TASK__BOT_TOKEN")
+    await delete_all_messages(task_channel_id, task_bot_token)
+    await delete_all_messages(task_channel_id, user_token)
+    await delete_all_messages(task_channel_id, task_bot_token)
+
+    mail_channel_id = os.getenv("SLACK_BOT_MAIL__CHANNEL_ID")
+    mail_bot_token = os.getenv("SLACK_BOT_MAIL__BOT_TOKEN")
+    await delete_all_messages(mail_channel_id, mail_bot_token)
+    await delete_all_messages(mail_channel_id, user_token)
+    await delete_all_messages(mail_channel_id, mail_bot_token)
 
 if __name__ == "__main__":
     asyncio.run(main())
