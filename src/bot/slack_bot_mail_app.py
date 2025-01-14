@@ -20,9 +20,9 @@ class SlackBotMailApp:
         watcher = await MailWatcher.start(self.config.surrealdb)
         async for mail in watcher.watch_mails():
             try:
-                # action = mail["action"]
-                # if action != "CREATE":
-                #     continue
+                action = mail["action"]
+                if action != "CREATE":
+                    continue
                 
                 mail_msg: MailMessage = mail["mail_msg"]
                 if mail_msg is None:
