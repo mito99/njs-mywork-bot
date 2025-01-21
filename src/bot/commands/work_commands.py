@@ -1,6 +1,7 @@
 import logging
 import os
 from abc import ABC, abstractmethod
+
 import requests
 
 from bot.config import Config
@@ -11,12 +12,12 @@ class WorkCommand(ABC):
     """作業コマンドの抽象基底クラス"""
 
     @abstractmethod
-    def execute(self, client, message, say):
+    async def execute(self, client, message, say):
         """コマンドを実行する抽象メソッド"""
         pass
 
     @classmethod
-    def create(cls, command_text: str, config: Config) -> "WorkCommand":
+    async def create(cls, command_text: str, config: Config) -> "WorkCommand":
         """コマンドに応じたコマンドを返すビルダーメソッド"""
 
         # コマンドテキストをスペースで分割
@@ -51,12 +52,12 @@ class DeleteFileCommand(WorkCommand):
         self.file_name = file_name
         self.config = config
 
-    def execute(self, client, message, say):
+    async def execute(self, client, message, say):
         """ファイルを削除します。"""
         storage_path = self.config.application.storage[self.file_type].path
         file_path = os.path.join(storage_path, self.file_name)
         os.remove(file_path)
-        say(f"{self.file_type}ファイルを削除しました。=> {file_path}")
+        await say(f"{self.file_type}ファイルを削除しました。=> {file_path}")
         return
 
 
@@ -66,23 +67,20 @@ class UsageCommand(WorkCommand):
     def __init__(self, config: Config):
         self.config = config
 
-    def execute(self, client, message, say):
+    async def execute(self, client, message, say):
         """使用方法を表示します。"""
+        from bot.tools.work_tools.types import FileType
 
-        storage_types = list(self.config.application.storage.keys())
-        usage_message = "\n".join(
-            [
-                (
-                    f"cmd list {storage_type}\n"
-                    f"cmd get {storage_type} <FILE_NAME>\n"
-                    f"cmd put {storage_type}\n"
-                    f"cmd delete {storage_type} <FILE_NAME>"
-                )
-                for storage_type in storage_types
-            ]
+        usage_message = (
+            "使用可能なコマンド:\n"
+            "- `cmd get <ストレージ名> <ファイル名>`: ファイルを取得\n"
+            "- `cmd put <ストレージ名>`: ファイルをアップロード\n"
+            "- `cmd list <ストレージ名>`: ファイル一覧を表示\n"
+            "- `cmd delete <ストレージ名> <ファイル名>`: ファイルを削除\n\n"
+            "利用可能なストレージ名:\n"
+            + "\n".join([f"- {storage.value}" for storage in FileType])
         )
-        say(f"使用方法:\n{usage_message}")
-        return
+        await say(f"使用方法:\n{usage_message}")
 
 
 class GetFileCommand(WorkCommand):
@@ -93,8 +91,9 @@ class GetFileCommand(WorkCommand):
         self.storage_path = config.application.storage[file_type].path
         self.file_path = os.path.join(self.storage_path, work_file_name)
 
-    def execute(self, client, message, say):
+    async def execute(self, client, message, say):
         """ファイルをアップロードします。"""
+        await say(f"{self.file_type}ファイルを取得します。")
         result = client.files_upload_v2(
             channel=message["channel"],
             file=self.file_path,
@@ -110,15 +109,16 @@ class ListFileCommand(WorkCommand):
         self.file_type = file_type
         self.storage_path = config.application.storage[file_type].path
 
-    def execute(self, client, message, say):
+    async def execute(self, client, message, say):
         """ファイル一覧を取得します。"""
+        await say(f"{self.file_type}ファイル一覧を取得します。")
         file_list = os.listdir(self.storage_path)
         if len(file_list) == 0:
-            say(f"{self.file_type}ファイルはありません。")
+            await say(f"{self.file_type}ファイルはありません。")
             return
 
         file_list_str = "\n".join([f"・{file}" for file in file_list])
-        say(f"{self.file_type}ファイル一覧:\n{file_list_str}")
+        await say(f"{self.file_type}ファイル一覧:\n{file_list_str}")
         return
 
 
@@ -130,16 +130,17 @@ class PutFileCommand(WorkCommand):
         self.storage_path = config.application.storage[file_type].path
         self.slack_bot_token = config.slack_bot_token
 
-    def execute(self, client, message, say):
+    async def execute(self, client, message, say):
         """ファイルを置きます。"""
+        await say(f"{self.file_type}ファイルをアップロードします。")
         if message.get("files") and len(message["files"]) <= 0:
-            say("ファイルがありません。")
+            await say("ファイルがありません。")
             return
 
         file = message["files"][0]
         file_url = file.get("url_private_download")
         if not file_url:
-            say("ファイルのURLが取得できません。")
+            await say("ファイルのURLが取得できません。")
             return
 
         filename = file.get("name")
@@ -150,5 +151,5 @@ class PutFileCommand(WorkCommand):
         with open(save_path, "wb") as f:
             f.write(response.content)
 
-        say(f"{self.file_type}ファイルを置きました。=> {save_path}")
+        await say(f"{self.file_type}ファイルを置きました。=> {save_path}")
         return 

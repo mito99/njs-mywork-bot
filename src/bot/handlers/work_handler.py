@@ -28,26 +28,23 @@ def register_work_handlers(app: AsyncApp, config: Config):
         model=config.google_gemini_model_name,
         google_api_key=config.google_api_key,
     )
+    
     @app.message(re.compile("^cmd\s+.*"))
     async def handle_command(message, say, client):
         """コマンドの処理"""
 
         # メッセージの検証を行う
         if not is_valid_message(message, config):
-            say("メッセージが許可されていません。")
+            await say("メッセージが許可されていません。")
             return
 
         # メッセージテキストを取得
         text = message.get("text", "").replace("cmd", "", 1).strip()
-        command = WorkCommand.create(text, config)
-        if command is UsageCommand:
-            command.execute(client, message, say)
-            return
-
         try:
-            command.execute(client, message, say)
+            command = await WorkCommand.create(text, config)
+            await command.execute(client, message, say)
         except Exception as e:
-            say(f"エラーが発生しました。\n{e}")
+            await say(f"エラーが発生しました。\n{e}")
             return
 
     @app.message(re.compile("^(?!cmd).*"))
