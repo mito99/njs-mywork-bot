@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import ClassVar, Optional
 
 from langchain_core.tools import BaseTool
@@ -22,7 +23,7 @@ class ListFilesTool(BaseTool):
 
     def _run(self, file_type: FileType) -> list[str]:
         """
-        指定されたファイルタイプのディレクトリ内のファイル一覧を取得します。
+        指定されたファイルタイプのディレクトリ内のファイル名一覧を取得します。
 
         Args:
             file_type (FileType): 一覧を取得するファイルの種類（ストレージカテゴリ）
@@ -39,9 +40,9 @@ class ListFilesTool(BaseTool):
         
         dir_path = self.config.application.storage[file_type].path
         try:
-            files = os.listdir(dir_path)
-            # ディレクトリ内のファイルのみを取得
-            files = [f for f in files if os.path.isfile(os.path.join(dir_path, f))]
+            files = Path(dir_path).glob("*")
+            # ディレクトリ内のファイルのみを取得し、ファイル名に変換
+            files = [f.name for f in files if f.is_file()]
             return files
         except OSError:
             return [] 

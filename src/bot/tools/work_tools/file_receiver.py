@@ -54,7 +54,7 @@ class ReceiveFileTool(BaseTool):
         dir_path = self.config.application.storage[file_type].path
         save_path = os.path.join(dir_path, file_name)
 
-        headers = {"Authorization": f"Bearer {self.config.slack_bot_token}"}
+        headers = {"Authorization": f"Bearer {self.config.slack_bot_task.bot_token}"}
         response = requests.get(file_url, headers=headers)
         with open(save_path, "wb") as f:
             f.write(response.content)

@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+from pathlib import Path
 from typing import Any, ClassVar, Optional
 
 from langchain_core.tools import BaseTool
@@ -73,23 +74,26 @@ class SendFileTool(BaseTool):
             raise ValueError("Slack client or message is not configured")
         
         dir_path = self.config.application.storage[file_type].path
-        resolved_file_path = os.path.abspath(f'{dir_path}/{file_name}')
+        resolved_file_path = Path(dir_path) / file_name
 
         # ファイルの存在と有効性を確認
-        if not os.path.exists(resolved_file_path):
+        if not Path(resolved_file_path).exists():
             raise ValueError(f"ファイルが見つかりません: {resolved_file_path}")
         
-        if os.path.getsize(resolved_file_path) == 0:
+        if Path(resolved_file_path).stat().st_size == 0:
             raise ValueError(f"ファイルサイズが0バイトです: {resolved_file_path}")
 
         try:
             thread_ts = self.message.get("ts")
-            await self.client.files_upload_v2(
-                channel=self.message["channel"],
-                file=resolved_file_path,
-                initial_comment=f"{file_type}/{file_name}を送ります。",
-                thread_ts=thread_ts
-            )
+            # ファイルを開いてバイナリモードで読み込む
+            with open(resolved_file_path, 'rb') as file:
+                await self.client.files_upload_v2(
+                    channel=self.message["channel"],
+                    file=file,
+                    filename=file_name,
+                    initial_comment=f"{file_type}/{file_name}を送ります。",
+                    thread_ts=thread_ts
+                )
         except Exception as e:
             logger.error(f"ファイルの送信に失敗しました。エラー: {e}")
             raise ValueError(f"ファイルの送信に失敗しました。エラー: {e}") 

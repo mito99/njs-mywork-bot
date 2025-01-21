@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 from typing import ClassVar, Optional
 
 from langchain_core.tools import BaseTool
@@ -37,13 +38,13 @@ class DeleteStorageFileTool(BaseTool):
         logger.info(f"DeleteStorageFileTool: {file_name}, {file_type}")
         
         dir_path = self.config.application.storage[file_type].path
-        file_path = os.path.join(dir_path, file_name)
+        file_path = Path(dir_path) / file_name
 
-        if not os.path.exists(file_path):
+        if not Path(file_path).exists():
             raise ValueError(f"ファイルが見つかりません: {file_path}")
 
         try:
-            os.remove(file_path)
+            Path(file_path).unlink()
             return file_path
         except Exception as e:
             logger.error(f"ファイルの削除に失敗しました。エラー: {e}")
