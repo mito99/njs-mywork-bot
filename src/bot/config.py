@@ -53,6 +53,7 @@ class Config(BaseSettings):
     aws: AWSConfig = Field(default_factory=AWSConfig)
 
     ignore_mail_addresses: str
+    enable_mail_watcher: bool = False
     
     def is_ignore_mail(self, mail_address: str) -> bool:
         ignore_mail_addresses = self.ignore_mail_addresses.split(",")

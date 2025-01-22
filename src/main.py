@@ -15,15 +15,18 @@ async def main():
     
     setup_logging(config.application.log_level)
 
-    # メール監視のタスクとして実行
-    slack_bot_mail_app = SlackBotMailApp(config)    
-    task_bot_mail = asyncio.create_task(slack_bot_mail_app.subscribe_mail())
+    tasks = []
+
+    # メール監視のタスクとして実行（設定が有効な場合のみ）
+    if config.enable_mail_watcher:
+        slack_bot_mail_app = SlackBotMailApp(config)    
+        tasks.append(asyncio.create_task(slack_bot_mail_app.subscribe_mail()))
     
     # Slackのソケットモードを起動
     slack_task_bot_app = SlackBotTaskApp(config)
-    task_bot_task = asyncio.create_task(slack_task_bot_app.start_socket_mode())
+    tasks.append(asyncio.create_task(slack_task_bot_app.start_socket_mode()))
 
-    await asyncio.gather(task_bot_mail, task_bot_task)
+    await asyncio.gather(*tasks)
 
 if __name__ == "__main__":
     asyncio.run(main())
