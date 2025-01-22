@@ -23,6 +23,12 @@ class ApplicationConfig(BaseModel):
     log_level: str = "INFO"
     storage: Dict[str, StorageConfig] = Field(default_factory=dict)
 
+class AWSConfig(BaseModel):
+    access_key_id: str
+    secret_access_key: str
+    default_region: str
+    model_id: str
+
 class Config(BaseSettings):
     """アプリケーション設定"""
 
@@ -44,7 +50,8 @@ class Config(BaseSettings):
     surrealdb: SurrealDBSetting
     application: ApplicationConfig = Field(default_factory=ApplicationConfig)
     startup_time: float = time()
-    
+    aws: AWSConfig = Field(default_factory=AWSConfig)
+
     ignore_mail_addresses: str
     
     def is_ignore_mail(self, mail_address: str) -> bool:

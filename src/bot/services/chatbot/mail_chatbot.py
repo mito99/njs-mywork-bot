@@ -37,7 +37,10 @@ class SummarizeMailChatbot:
         
     def _init_bedrock_chat(self, config: Config):
         return ChatBedrock(
-            model_id="amazon.nova-micro-v1:0",
+            model_id=config.aws.model_id,
+            region_name=config.aws.default_region,
+            aws_access_key_id=config.aws.access_key_id,
+            aws_secret_access_key=config.aws.secret_access_key,
             model_kwargs={
                 "temperature": 0,
                 "top_p": 1,
