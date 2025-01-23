@@ -5,6 +5,7 @@ from time import sleep
 from njs_mywork_tools.mail import MailWatcher
 
 from bot.config import Config, load_config
+from bot.filesystem_health import FileSystemHealthCheck
 from bot.slack_bot_mail_app import SlackBotMailApp
 from bot.slack_bot_task_app import SlackBotTaskApp
 from bot.utils.logging import setup_logging
@@ -16,6 +17,10 @@ async def main():
     setup_logging(config.application.log_level)
 
     tasks = []
+
+    # ファイルシステムヘルスチェックを追加
+    filesystem_health_check = FileSystemHealthCheck(config.application.storage)
+    tasks.append(asyncio.create_task(filesystem_health_check.start_health_check()))
 
     # メール監視のタスクとして実行（設定が有効な場合のみ）
     if config.enable_mail_watcher:
