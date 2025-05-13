@@ -9,6 +9,7 @@ from .file_deleter import DeleteStorageFileTool
 from .file_lister import ListFilesTool
 from .file_receiver import ReceiveFileTool
 from .file_sender import SendFileTool
+from .paid_leave import SubmitPaidLeaveTool, UpdatePaidLeaveTool
 from .types import FileType
 
 __all__ = [
@@ -20,6 +21,8 @@ __all__ = [
     'DeleteStorageFileTool',
     'SubmitAttendanceSheetTool',
     'GetCurrentDateTimeTool',
+    'UpdatePaidLeaveTool',
+    'SubmitPaidLeaveTool',
 ] 
 
 config = load_config()

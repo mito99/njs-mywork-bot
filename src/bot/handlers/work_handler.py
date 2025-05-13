@@ -18,6 +18,8 @@ from bot.tools.work_tools import (DeleteStorageFileTool,
                                   ReceiveFileTool, SendFileTool,
                                   SubmitAttendanceSheetTool,
                                   UpdateAttendanceSheetTool)
+from bot.tools.work_tools.paid_leave import (SubmitPaidLeaveTool,
+                                             UpdatePaidLeaveTool)
 
 logger = logging.getLogger(__name__)
 
@@ -70,11 +72,13 @@ def register_work_handlers(app: AsyncApp, config: Config):
         
         chatbot = WorkChatbot(llm)
         chatbot.add_tool(UpdateAttendanceSheetTool(config, client, message))
+        chatbot.add_tool(UpdatePaidLeaveTool(config, client, message))
         chatbot.add_tool(SendFileTool(config, client, message))
         chatbot.add_tool(ListFilesTool(config))
         chatbot.add_tool(ReceiveFileTool(config))
         chatbot.add_tool(DeleteStorageFileTool(config))
         chatbot.add_tool(SubmitAttendanceSheetTool(config, client, message))
+        chatbot.add_tool(SubmitPaidLeaveTool(config, client, message))
         chatbot.add_tool(GetCurrentDateTimeTool())
 
         # 累積メッセージを保持する変数を追加
