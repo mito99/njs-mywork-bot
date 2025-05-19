@@ -44,10 +44,13 @@ class WorkCommand(ABC):
             return PutFileCommand(file_type, config)
         elif action == "DELETE":
             return DeleteFileCommand(file_type, file_name, config)
-        elif action == "UPDATE" and file_type == FileType.ATTENDANCE.value:
+        elif action == "UPDATE":
             if not file_name:
                 return UsageCommand(config)
-            return UpdateAttendanceCommand(file_type, file_name, config)
+            if file_type == FileType.ATTENDANCE.value:
+                return UpdateAttendanceCommand(file_type, file_name, config)
+            elif file_type == FileType.HOLIDAY.value:
+                return UpdatePaidLeaveCommand(file_type, file_name, config)
 
         return UsageCommand(config)
 
@@ -90,7 +93,8 @@ class UsageCommand(WorkCommand):
             "- `cmd put <ストレージ名>`: ファイルをアップロード\n"
             "- `cmd list <ストレージ名>`: ファイル一覧を表示\n"
             "- `cmd delete <ストレージ名> <ファイル名>`: ファイルを削除\n"
-            "- `cmd update 勤怠 <ファイル名>`: 勤怠表を更新\n\n"
+            "- `cmd update 勤怠 <ファイル名>`: 勤怠表を更新\n"
+            "- `cmd update 有休 <ファイル名>`: 有給休暇ファイルを更新\n\n"
             "利用可能なストレージ名:\n"
             + "\n".join([f"- {storage.value}" for storage in FileType])
         )
@@ -202,19 +206,13 @@ class UpdateAttendanceCommand(WorkCommand):
         # ユーザーIDを取得
         user_id = message.get("user")
         if not user_id:
-            await say("ユーザーIDが取得できません。")
-            return None
+            raise ValueError("ユーザーIDが取得できません。")
         
-        try:
-            user_info = await client.users_info(user=user_id)
-            if not user_info["ok"]:
-                await say("ユーザー情報の取得に失敗しました。")
-                return None
-            return user_info
-        except Exception as e:
-            logger.error(f"ユーザー情報の取得に失敗しました。エラー: {e}")
-            await say("ユーザー情報の取得に失敗しました。")
-            return None
+        user_info = await client.users_info(user=user_id)
+        if not user_info["ok"]:
+            raise ValueError("ユーザー情報の取得に失敗しました。")
+        return user_info
+
 
     async def execute(self, client, message, say):
         """勤怠表を更新します。"""
@@ -232,12 +230,6 @@ class UpdateAttendanceCommand(WorkCommand):
                 "ユーザー情報を取得中..."
             )
             user_info = await self._get_user_info(client, message, say)
-            if not user_info:
-                await send_message.send(
-                    "❌ ユーザー情報の取得に失敗しました"
-                )
-                return
-
             user_name = user_info["user"]["real_name"]
             await send_message.send(
                 f"✅ ユーザー情報を取得しました: {user_name}"
@@ -278,5 +270,84 @@ class UpdateAttendanceCommand(WorkCommand):
             logger.error(f"勤怠表の更新に失敗しました。エラー: {e}")
             await send_message.send(
                 f"❌ 勤怠表の更新に失敗しました。エラー: {e}"
+            )
+        return 
+
+
+class UpdatePaidLeaveCommand(WorkCommand):
+    """有給休暇ファイルを更新するコマンド"""
+
+    def __init__(self, file_type: str, file_name: str, config: Config):
+        self.file_type = file_type
+        self.file_name = file_name
+        self.config = config
+
+    async def _get_user_info(self, client, message, say):
+        # ユーザーIDを取得
+        user_id = message.get("user")
+        if not user_id:
+            raise ValueError("ユーザーIDが取得できません。")
+        
+        user_info = await client.users_info(user=user_id)
+        if not user_info["ok"]:
+            raise ValueError("ユーザー情報の取得に失敗しました。")
+        return user_info
+
+    async def execute(self, client, message, say):
+        """有給休暇ファイルを更新します。"""
+        thread_ts = message.get("ts")
+        send_message = MessageSender(client, message["channel"], thread_ts)
+        try:
+            # 初期メッセージを送信
+            await send_message.send(
+                "有給休暇ファイルの更新を開始します..."
+            )
+
+            # ユーザー情報の取得
+            await send_message.send(
+                "ユーザー情報を取得中..."
+            )
+            user_info = await self._get_user_info(client, message, say)
+            user_name = user_info["user"]["real_name"]
+            await send_message.send(
+                f"✅ ユーザー情報を取得しました: {user_name}"
+            )
+
+            # ファイルの存在確認
+            storage_path = self.config.application.storage[self.file_type].path
+            file_path = os.path.join(storage_path, self.file_name)
+            if not os.path.exists(file_path):
+                files = os.listdir(storage_path)
+                file_list = "\n".join(files)
+                await send_message.send(
+                    f"❌ 有給休暇ファイル {self.file_name} が見つかりません。\n\n現在のファイル一覧:\n{file_list}"
+                )
+                return None
+
+            # 有給休暇ファイルの更新
+            await send_message.send(
+                "有給休暇ファイルの更新を開始します..."
+            )
+            
+            now = datetime.now()
+            update_month = now.month
+
+            from bot.tools.work_tools.paid_leave import UpdatePaidLeaveTool
+            tool = UpdatePaidLeaveTool(self.config, client, message)
+            await tool._arun(
+                user_name=user_name,
+                update_year=None,
+                update_month=update_month,
+                paid_leave_file_name=self.file_name
+            )
+
+            await send_message.send(
+                "✅ 有給休暇ファイルの更新が完了しました"
+            )
+
+        except Exception as e:
+            logger.error(f"有給休暇ファイルの更新に失敗しました。エラー: {e}")
+            await send_message.send(
+                f"❌ 有給休暇ファイルの更新に失敗しました。エラー: {e}"
             )
         return 
