@@ -111,10 +111,12 @@ class GetFileCommand(WorkCommand):
         send_message = MessageSender(client, message["channel"], thread_ts)
         try:
             await send_message.send(f"{self.file_type}ファイルの取得を開始します...")
-            result = client.files_upload_v2(
+            await client.files_upload_v2(
                 channel=message["channel"],
                 file=self.file_path,
+                filename=os.path.basename(self.file_path),
                 initial_comment=f"{self.file_type}ファイルを送ります。",
+                thread_ts=thread_ts
             )
             await send_message.send("✅ ファイルの取得が完了しました")
         except Exception as e:
