@@ -55,6 +55,9 @@ class Config(BaseSettings):
     ignore_mail_addresses: str
     enable_mail_watcher: bool = False
     
+    njs_file_access_restriction_enabled: bool = True
+    njs_file_name_pattern_restriction: str = ".*"
+    
     def is_ignore_mail(self, mail_address: str) -> bool:
         ignore_mail_addresses = self.ignore_mail_addresses.split(",")
         for ignore_mail_address in ignore_mail_addresses:

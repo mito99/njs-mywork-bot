@@ -8,6 +8,7 @@ import requests
 from bot.config import Config
 from bot.tools.work_tools.attendance import UpdateAttendanceSheetTool
 from bot.tools.work_tools.types import FileType
+from bot.utils.file_restriction import FileRestriction
 from bot.utils.message import MessageSender
 
 logger = logging.getLogger(__name__)
@@ -62,11 +63,17 @@ class DeleteFileCommand(WorkCommand):
         self.file_type = file_type
         self.file_name = file_name
         self.config = config
+        self.file_restriction = FileRestriction(config)
 
     async def execute(self, client, message, say):
         """ファイルを削除します。"""
         thread_ts = message.get("ts")
         send_message = MessageSender(client, message["channel"], thread_ts)
+        
+        if not self.file_restriction.is_allowed(self.file_name):
+            await send_message.send("❌ ファイル名が制約に違反しています。")
+            return
+        
         try:
             await send_message.send(f"{self.file_type}ファイルの削除を開始します...")
             storage_path = self.config.application.storage[self.file_type].path
@@ -108,11 +115,17 @@ class GetFileCommand(WorkCommand):
         self.file_type = file_type
         self.storage_path = config.application.storage[file_type].path
         self.file_path = os.path.join(self.storage_path, work_file_name)
+        self.file_restriction = FileRestriction(config)
 
     async def execute(self, client, message, say):
         """ファイルをアップロードします。"""
         thread_ts = message.get("ts")
         send_message = MessageSender(client, message["channel"], thread_ts)
+        
+        if not self.file_restriction.is_allowed(self.file_path):
+            await send_message.send("❌ ファイル名が制約に違反しています。")
+            return
+        
         try:
             await send_message.send(f"{self.file_type}ファイルの取得を開始します...")
             await client.files_upload_v2(
@@ -135,6 +148,7 @@ class ListFileCommand(WorkCommand):
     def __init__(self, file_type: str, config: Config):
         self.file_type = file_type
         self.storage_path = config.application.storage[file_type].path
+        self.file_restriction = FileRestriction(config)
 
     async def execute(self, client, message, say):
         """ファイル一覧を取得します。"""
@@ -142,7 +156,7 @@ class ListFileCommand(WorkCommand):
         send_message = MessageSender(client, message["channel"], thread_ts)
         try:
             await send_message.send(f"{self.file_type}ファイル一覧の取得を開始します...")
-            file_list = os.listdir(self.storage_path)
+            file_list = os.listdir(self.storage_path)            
             if len(file_list) == 0:
                 await send_message.send(f"ℹ️ {self.file_type}ファイルはありません。")
                 return
@@ -162,6 +176,7 @@ class PutFileCommand(WorkCommand):
         self.file_type = file_type
         self.storage_path = config.application.storage[file_type].path
         self.slack_bot_token = config.slack_bot_task.bot_token
+        self.file_restriction = FileRestriction(config)
 
     async def execute(self, client, message, say):
         """ファイルを置きます。"""
@@ -181,6 +196,9 @@ class PutFileCommand(WorkCommand):
 
             filename = file.get("name")
             save_path = os.path.join(self.storage_path, filename)
+            if not self.file_restriction.is_allowed(filename):
+                await send_message.send("❌ ファイル名が制約に違反しています。")
+                return
 
             headers = {"Authorization": f"Bearer {self.slack_bot_token}"}
             response = requests.get(file_url, headers=headers)
@@ -201,6 +219,7 @@ class UpdateAttendanceCommand(WorkCommand):
         self.file_type = file_type
         self.file_name = file_name
         self.config = config
+        self.file_restriction = FileRestriction(config)
 
     async def _get_user_info(self, client, message, say):
         # ユーザーIDを取得
@@ -237,14 +256,20 @@ class UpdateAttendanceCommand(WorkCommand):
 
             # ファイルの存在確認
             storage_path = self.config.application.storage[self.file_type].path
+
             file_path = os.path.join(storage_path, self.file_name)
+            if not self.file_restriction.is_allowed(file_path):
+                await send_message.send("❌ ファイル名が制約に違反しています。")
+                return
+            
             if not os.path.exists(file_path):
                 files = os.listdir(storage_path)
                 file_list = "\n".join(files)
                 await send_message.send(
-                    f"❌ 勤怠ファイル {self.file_name} が見つかりません。\n\n現在のファイル一覧:\n{file_list}"
+                    f"❌ 勤怠ファイル {self.file_name} が見つかりません。\n\n"
+                    f"現在のファイル一覧:\n{file_list}"
                 )
-                return None
+                return
 
             # 勤怠表の更新
             await send_message.send(
@@ -281,6 +306,7 @@ class UpdatePaidLeaveCommand(WorkCommand):
         self.file_type = file_type
         self.file_name = file_name
         self.config = config
+        self.file_restriction = FileRestriction(config)
 
     async def _get_user_info(self, client, message, say):
         # ユーザーIDを取得
@@ -316,13 +342,18 @@ class UpdatePaidLeaveCommand(WorkCommand):
             # ファイルの存在確認
             storage_path = self.config.application.storage[self.file_type].path
             file_path = os.path.join(storage_path, self.file_name)
+            if not self.file_restriction.is_allowed(file_path):
+                await send_message.send("❌ ファイル名が制約に違反しています。")
+                return
+            
             if not os.path.exists(file_path):
                 files = os.listdir(storage_path)
                 file_list = "\n".join(files)
                 await send_message.send(
-                    f"❌ 有給休暇ファイル {self.file_name} が見つかりません。\n\n現在のファイル一覧:\n{file_list}"
+                    f"❌ 有給休暇ファイル {self.file_name} が見つかりません。\n\n"
+                    f"現在のファイル一覧:\n{file_list}"
                 )
-                return None
+                return
 
             # 有給休暇ファイルの更新
             await send_message.send(
