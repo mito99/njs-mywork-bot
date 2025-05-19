@@ -8,6 +8,7 @@ import requests
 from bot.config import Config
 from bot.tools.work_tools.attendance import UpdateAttendanceSheetTool
 from bot.tools.work_tools.types import FileType
+from bot.utils.message import MessageSender
 
 logger = logging.getLogger(__name__)
 
@@ -189,36 +190,65 @@ class UpdateAttendanceCommand(WorkCommand):
 
     async def execute(self, client, message, say):
         """勤怠表を更新します。"""
+        
+        thread_ts = message.get("ts")
+        send_message = MessageSender(client, message["channel"], thread_ts)
         try:
+            # 初期メッセージを送信
+            await send_message.send(
+                "勤怠表の更新を開始します..."
+            )
+
+            # ユーザー情報の取得
+            await send_message.send(
+                "ユーザー情報を取得中..."
+            )
             user_info = await self._get_user_info(client, message, say)
-            user_name = user_info["user"]["real_name"]
-            if not user_name:
+            if not user_info:
+                await send_message.send(
+                    "❌ ユーザー情報の取得に失敗しました"
+                )
                 return
 
-            # ファイルの存在を確認
+            user_name = user_info["user"]["real_name"]
+            await send_message.send(
+                f"✅ ユーザー情報を取得しました: {user_name}"
+            )
+
+            # ファイルの存在確認
             storage_path = self.config.application.storage[self.file_type].path
             file_path = os.path.join(storage_path, self.file_name)
             if not os.path.exists(file_path):
-                # ファイル一覧を取得して表示
                 files = os.listdir(storage_path)
                 file_list = "\n".join(files)
-                await say(f"勤怠ファイル {self.file_name} が見つかりません。\n\n現在のファイル一覧:\n{file_list}")
+                await send_message.send(
+                    f"❌ 勤怠ファイル {self.file_name} が見つかりません。\n\n現在のファイル一覧:\n{file_list}"
+                )
                 return None
 
-            # 現在の年月を取得
+            # 勤怠表の更新
+            await send_message.send(
+                "勤怠表の更新を開始します..."
+            )
+            
             now = datetime.now()
             update_month = now.month
 
-            # 勤怠表更新ツールを実行
             tool = UpdateAttendanceSheetTool(self.config, client, message)
             await tool._arun(
                 user_name=user_name,
-                update_year=None,  # 自動的に決定
+                update_year=None,
                 update_month=update_month,
                 attendance_file_name=self.file_name
             )
-            await say(f"{self.file_type}ファイルを更新しました。")
+
+            await send_message.send(
+                "✅ 勤怠表の更新が完了しました"
+            )
+
         except Exception as e:
             logger.error(f"勤怠表の更新に失敗しました。エラー: {e}")
-            await say(f"勤怠表の更新に失敗しました。エラー: {e}")
+            await send_message.send(
+                f"❌ 勤怠表の更新に失敗しました。エラー: {e}"
+            )
         return 

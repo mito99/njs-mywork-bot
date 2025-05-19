@@ -14,6 +14,7 @@ from slack_sdk.web import WebClient
 from slack_sdk.web.async_client import AsyncWebClient
 
 from bot.config import Config
+from bot.utils.message import MessageSender
 
 from .types import FileType
 
@@ -30,12 +31,18 @@ class UpdateAttendanceSheetTool(BaseTool):
     config: Optional[Config] = None
     client: Optional[AsyncWebClient] = None
     message: Optional[dict[str, Any]] = None
+    send_message: MessageSender = None
 
     def __init__(self, config: Config, client: AsyncWebClient, message: dict[str, Any]):
         super().__init__()
         self.config = config
         self.client = client
         self.message = message
+        self.send_message = MessageSender(
+            self.client, 
+            self.message["channel"], 
+            self.message.get("ts")
+        )
         
     def _run(self, 
              user_name: str, 
@@ -88,7 +95,6 @@ class UpdateAttendanceSheetTool(BaseTool):
             - 勤怠データはGoogleTimeCardReaderを使用して取得されます
             - 勤怠表はExcelWriterを使用して作成されます
         """
-        
         logger.info(
             "UpdateAttendanceSheetTool: "
             f"{user_name}, {update_year}, {update_month}, {attendance_file_name}"
@@ -106,11 +112,18 @@ class UpdateAttendanceSheetTool(BaseTool):
             else:
                 update_year = datetime.now().year
         
+        await self.send_message.send(
+            f"対象年月: {update_year}/{update_month}\n"
+            f"勤怠表ファイル名: {attendance_file_name}\n"
+        )
+        
         # 勤怠データを取得
         logger.info(f"UpdateAttendanceSheetTool: {update_year}, {update_month}")
+        await self.send_message.send("勤怠データを取得開始...")
         timecard_data_list = self._get_timecard_data(update_year, update_month)
         
         # 一時ディレクトリに勤怠表ファイルを作成
+        await self.send_message.send("勤怠表ファイルの作成開始...")
         output_path = self._update_attendance_file(
             user_name=user_name,
             attendance_file_name=attendance_file_name,
@@ -120,6 +133,7 @@ class UpdateAttendanceSheetTool(BaseTool):
 
         # 更新した勤怠表を送信
         logger.info(f"UpdateAttendanceSheetTool: {output_path}")
+        await self.send_message.send("勤怠表の送信開始...")
         await self._send_attendance_file(output_path)
 
 
