@@ -128,7 +128,7 @@ class PutFileCommand(WorkCommand):
     def __init__(self, file_type: str, config: Config):
         self.file_type = file_type
         self.storage_path = config.application.storage[file_type].path
-        self.slack_bot_token = config.slack_bot_token
+        self.slack_bot_token = config.slack_bot_task.bot_token
 
     async def execute(self, client, message, say):
         """ファイルを置きます。"""
