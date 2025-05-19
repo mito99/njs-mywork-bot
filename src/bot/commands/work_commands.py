@@ -62,10 +62,17 @@ class DeleteFileCommand(WorkCommand):
 
     async def execute(self, client, message, say):
         """ファイルを削除します。"""
-        storage_path = self.config.application.storage[self.file_type].path
-        file_path = os.path.join(storage_path, self.file_name)
-        os.remove(file_path)
-        await say(f"{self.file_type}ファイルを削除しました。=> {file_path}")
+        thread_ts = message.get("ts")
+        send_message = MessageSender(client, message["channel"], thread_ts)
+        try:
+            await send_message.send(f"{self.file_type}ファイルの削除を開始します...")
+            storage_path = self.config.application.storage[self.file_type].path
+            file_path = os.path.join(storage_path, self.file_name)
+            os.remove(file_path)
+            await send_message.send(f"✅ {self.file_type}ファイルを削除しました。=> {file_path}")
+        except Exception as e:
+            logger.error(f"ファイルの削除に失敗しました。エラー: {e}")
+            await send_message.send(f"❌ ファイルの削除に失敗しました。エラー: {e}")
         return
 
 
@@ -100,12 +107,19 @@ class GetFileCommand(WorkCommand):
 
     async def execute(self, client, message, say):
         """ファイルをアップロードします。"""
-        await say(f"{self.file_type}ファイルを取得します。")
-        result = client.files_upload_v2(
-            channel=message["channel"],
-            file=self.file_path,
-            initial_comment=f"{self.file_type}ファイルを送ります。",
-        )
+        thread_ts = message.get("ts")
+        send_message = MessageSender(client, message["channel"], thread_ts)
+        try:
+            await send_message.send(f"{self.file_type}ファイルの取得を開始します...")
+            result = client.files_upload_v2(
+                channel=message["channel"],
+                file=self.file_path,
+                initial_comment=f"{self.file_type}ファイルを送ります。",
+            )
+            await send_message.send("✅ ファイルの取得が完了しました")
+        except Exception as e:
+            logger.error(f"ファイルの取得に失敗しました。エラー: {e}")
+            await send_message.send(f"❌ ファイルの取得に失敗しました。エラー: {e}")
         return
 
 
@@ -118,14 +132,20 @@ class ListFileCommand(WorkCommand):
 
     async def execute(self, client, message, say):
         """ファイル一覧を取得します。"""
-        await say(f"{self.file_type}ファイル一覧を取得します。")
-        file_list = os.listdir(self.storage_path)
-        if len(file_list) == 0:
-            await say(f"{self.file_type}ファイルはありません。")
-            return
+        thread_ts = message.get("ts")
+        send_message = MessageSender(client, message["channel"], thread_ts)
+        try:
+            await send_message.send(f"{self.file_type}ファイル一覧の取得を開始します...")
+            file_list = os.listdir(self.storage_path)
+            if len(file_list) == 0:
+                await send_message.send(f"ℹ️ {self.file_type}ファイルはありません。")
+                return
 
-        file_list_str = "\n".join([f"・{file}" for file in file_list])
-        await say(f"{self.file_type}ファイル一覧:\n{file_list_str}")
+            file_list_str = "\n".join([f"・{file}" for file in file_list])
+            await send_message.send(f"✅ {self.file_type}ファイル一覧:\n{file_list_str}")
+        except Exception as e:
+            logger.error(f"ファイル一覧の取得に失敗しました。エラー: {e}")
+            await send_message.send(f"❌ ファイル一覧の取得に失敗しました。エラー: {e}")
         return
 
 
@@ -139,27 +159,33 @@ class PutFileCommand(WorkCommand):
 
     async def execute(self, client, message, say):
         """ファイルを置きます。"""
-        await say(f"{self.file_type}ファイルをアップロードします。")
-        if message.get("files") and len(message["files"]) <= 0:
-            await say("ファイルがありません。")
-            return
+        thread_ts = message.get("ts")
+        send_message = MessageSender(client, message["channel"], thread_ts)
+        try:
+            await send_message.send(f"{self.file_type}ファイルのアップロードを開始します...")
+            if message.get("files") and len(message["files"]) <= 0:
+                await send_message.send("❌ ファイルがありません。")
+                return
 
-        file = message["files"][0]
-        file_url = file.get("url_private_download")
-        if not file_url:
-            await say("ファイルのURLが取得できません。")
-            return
+            file = message["files"][0]
+            file_url = file.get("url_private_download")
+            if not file_url:
+                await send_message.send("❌ ファイルのURLが取得できません。")
+                return
 
-        filename = file.get("name")
-        save_path = os.path.join(self.storage_path, filename)
+            filename = file.get("name")
+            save_path = os.path.join(self.storage_path, filename)
 
-        headers = {"Authorization": f"Bearer {self.slack_bot_token}"}
-        response = requests.get(file_url, headers=headers)
-        with open(save_path, "wb") as f:
-            f.write(response.content)
+            headers = {"Authorization": f"Bearer {self.slack_bot_token}"}
+            response = requests.get(file_url, headers=headers)
+            with open(save_path, "wb") as f:
+                f.write(response.content)
 
-        await say(f"{self.file_type}ファイルを置きました。=> {save_path}")
-        return 
+            await send_message.send(f"✅ {self.file_type}ファイルを置きました。=> {save_path}")
+        except Exception as e:
+            logger.error(f"ファイルのアップロードに失敗しました。エラー: {e}")
+            await send_message.send(f"❌ ファイルのアップロードに失敗しました。エラー: {e}")
+        return
 
 
 class UpdateAttendanceCommand(WorkCommand):
