@@ -8,7 +8,7 @@ from slack_bolt import Say
 from slack_bolt.async_app import AsyncApp
 from slack_sdk.web.async_client import AsyncWebClient
 
-from bot.commands.work_commands import UsageCommand, WorkCommand
+from bot.commands.base import WorkCommand
 from bot.config import Config
 from bot.handlers.validation import is_valid_message
 from bot.services.chatbot.work_chatbot import (AttachedFile, ChatMessage,
