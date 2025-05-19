@@ -1,10 +1,13 @@
 import logging
 import os
 from abc import ABC, abstractmethod
+from datetime import datetime
 
 import requests
 
 from bot.config import Config
+from bot.tools.work_tools.attendance import UpdateAttendanceSheetTool
+from bot.tools.work_tools.types import FileType
 
 logger = logging.getLogger(__name__)
 
@@ -40,6 +43,10 @@ class WorkCommand(ABC):
             return PutFileCommand(file_type, config)
         elif action == "DELETE":
             return DeleteFileCommand(file_type, file_name, config)
+        elif action == "UPDATE" and file_type == FileType.ATTENDANCE.value:
+            if not file_name:
+                return UsageCommand(config)
+            return UpdateAttendanceCommand(file_type, file_name, config)
 
         return UsageCommand(config)
 
@@ -69,14 +76,13 @@ class UsageCommand(WorkCommand):
 
     async def execute(self, client, message, say):
         """使用方法を表示します。"""
-        from bot.tools.work_tools.types import FileType
-
         usage_message = (
             "使用可能なコマンド:\n"
             "- `cmd get <ストレージ名> <ファイル名>`: ファイルを取得\n"
             "- `cmd put <ストレージ名>`: ファイルをアップロード\n"
             "- `cmd list <ストレージ名>`: ファイル一覧を表示\n"
-            "- `cmd delete <ストレージ名> <ファイル名>`: ファイルを削除\n\n"
+            "- `cmd delete <ストレージ名> <ファイル名>`: ファイルを削除\n"
+            "- `cmd update 勤怠 <ファイル名>`: 勤怠表を更新\n\n"
             "利用可能なストレージ名:\n"
             + "\n".join([f"- {storage.value}" for storage in FileType])
         )
@@ -152,4 +158,67 @@ class PutFileCommand(WorkCommand):
             f.write(response.content)
 
         await say(f"{self.file_type}ファイルを置きました。=> {save_path}")
+        return 
+
+
+class UpdateAttendanceCommand(WorkCommand):
+    """勤怠表を更新するコマンド"""
+
+    def __init__(self, file_type: str, file_name: str, config: Config):
+        self.file_type = file_type
+        self.file_name = file_name
+        self.config = config
+
+    async def _get_user_info(self, client, message, say):
+        # ユーザーIDを取得
+        user_id = message.get("user")
+        if not user_id:
+            await say("ユーザーIDが取得できません。")
+            return None
+        
+        try:
+            user_info = await client.users_info(user=user_id)
+            if not user_info["ok"]:
+                await say("ユーザー情報の取得に失敗しました。")
+                return None
+            return user_info
+        except Exception as e:
+            logger.error(f"ユーザー情報の取得に失敗しました。エラー: {e}")
+            await say("ユーザー情報の取得に失敗しました。")
+            return None
+
+    async def execute(self, client, message, say):
+        """勤怠表を更新します。"""
+        try:
+            user_info = await self._get_user_info(client, message, say)
+            user_name = user_info["user"]["real_name"]
+            if not user_name:
+                return
+
+            # ファイルの存在を確認
+            storage_path = self.config.application.storage[self.file_type].path
+            file_path = os.path.join(storage_path, self.file_name)
+            if not os.path.exists(file_path):
+                # ファイル一覧を取得して表示
+                files = os.listdir(storage_path)
+                file_list = "\n".join(files)
+                await say(f"勤怠ファイル {self.file_name} が見つかりません。\n\n現在のファイル一覧:\n{file_list}")
+                return None
+
+            # 現在の年月を取得
+            now = datetime.now()
+            update_month = now.month
+
+            # 勤怠表更新ツールを実行
+            tool = UpdateAttendanceSheetTool(self.config, client, message)
+            await tool._arun(
+                user_name=user_name,
+                update_year=None,  # 自動的に決定
+                update_month=update_month,
+                attendance_file_name=self.file_name
+            )
+            await say(f"{self.file_type}ファイルを更新しました。")
+        except Exception as e:
+            logger.error(f"勤怠表の更新に失敗しました。エラー: {e}")
+            await say(f"勤怠表の更新に失敗しました。エラー: {e}")
         return 
