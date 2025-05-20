@@ -14,9 +14,8 @@ from slack_sdk.web import WebClient
 from slack_sdk.web.async_client import AsyncWebClient
 
 from bot.config import Config
+from bot.tools.work_tools.types import FileType
 from bot.utils.message import MessageSender
-
-from .types import FileType
 
 logger = logging.getLogger(__name__)
 
