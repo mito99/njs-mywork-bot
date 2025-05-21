@@ -124,9 +124,9 @@ class UpdatePaidLeaveTool(BaseTool):
         有給休暇申請ファイルを更新する
         """
         paid_leave_data_list: dict[date, PaidLeaveType] = {
-            data.date: PaidLeaveType.FULL_DAY
+            data.date: PaidLeaveType.from_work_type(data.work_type)
             for data in timecard_data_list
-            if data.work_type in ('有休', '有給')
+            if PaidLeaveType.is_valid_work_type(data.work_type)
         }
         
         paid_leave_dir_path = self.config.application.storage[FileType.HOLIDAY].path
