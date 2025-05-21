@@ -100,7 +100,7 @@ class UpdatePaidLeaveTool(BaseTool):
         update_year = int(update_year) if update_year else None
         update_month = int(update_month)
         
-                # 更新対象月が現在の月より小さい場合は、前年を更新対象年とする
+        # 更新対象月が現在の月より小さい場合は、前年を更新対象年とする
         # 更新対象月が現在の月より大きい場合は、当年を更新対象年とする
         if update_year is None:
             if datetime.now().month < update_month:

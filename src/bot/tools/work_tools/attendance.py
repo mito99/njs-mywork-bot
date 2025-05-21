@@ -130,11 +130,6 @@ class UpdateAttendanceSheetTool(BaseTool):
             timecard_data_list=timecard_data_list
         )
 
-        # 更新した勤怠表を送信
-        logger.info(f"UpdateAttendanceSheetTool: {output_path}")
-        await self.send_message.send("勤怠表の送信開始...")
-        await self._send_attendance_file(output_path)
-
 
     async def _send_attendance_file(self, output_path: str) -> None:
         """
