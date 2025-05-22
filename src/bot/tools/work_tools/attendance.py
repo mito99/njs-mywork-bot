@@ -238,3 +238,114 @@ class SubmitAttendanceSheetTool(BaseTool):
             update_month=update_month,
             attendance_file_name=attendance_file_name
         )
+
+class GetAttendanceStatusTool(BaseTool):
+    """
+    指定された年月の勤怠データを取得します。
+    """
+    
+    name: ClassVar[str] = "get_attendance_status"
+    description: ClassVar[str] = "指定された年月の勤怠データを取得します"
+    
+    config: Optional[Config] = None
+    client: Optional[AsyncWebClient] = None
+    message: Optional[dict[str, Any]] = None
+    send_message: MessageSender = None
+
+    def __init__(self, config: Config, client: AsyncWebClient, message: dict[str, Any]):
+        super().__init__()
+        self.config = config
+        self.client = client
+        self.message = message
+        self.send_message = MessageSender(
+            self.client, 
+            self.message["channel"], 
+            self.message.get("ts")
+        )
+
+    def _run(self, 
+             update_year: int | None, 
+             update_month: int
+    ) -> list[Any]:
+        """
+        勤怠データの取得処理を実行するメソッド。
+
+        Args:
+            update_year (int | None): 取得対象の年。Noneの場合は自動的に決定
+            update_month (int): 取得対象の月
+
+        Returns:
+            list[Any]: 取得した勤怠データのリスト
+
+        Note:
+            - 非同期メソッド _arun を同期的に実行するためのラッパーメソッド
+            - asyncio.run() を使用して非同期メソッドを同期的に実行
+            - エラーハンドリングは _arun メソッド内で行われる
+
+        Raises:
+            ValueError: 勤怠データの取得中に発生する可能性のある例外
+        """
+        return asyncio.run(self._arun(update_year, update_month))
+
+    async def _arun(self, 
+             update_year: int | None, 
+             update_month: int
+    ) -> list[Any]:
+        """
+        勤怠データを取得します。
+
+        Args:
+            update_year (int | None): 取得対象年。Noneの場合は自動的に決定されます
+            update_month (int): 取得対象月
+
+        Returns:
+            list[Any]: 取得した勤怠データのリスト
+
+        Note:
+            - 出力年が指定されていない場合、現在の月に基づいて自動的に決定されます
+            - 勤怠データはGoogleTimeCardReaderを使用して取得されます
+        """
+        logger.info(
+            "GetAttendanceStatusTool: "
+            f"{update_year}, {update_month}"
+        )
+        
+        # 更新対象年と更新対象月がfloatの場合があるのでintに変換
+        update_year = int(update_year) if update_year else None
+        update_month = int(update_month)
+                
+        # 更新対象月が現在の月より小さい場合は、前年を更新対象年とする
+        # 更新対象月が現在の月より大きい場合は、当年を更新対象年とする
+        if update_year is None:
+            if datetime.now().month < update_month:
+                update_year = datetime.now().year - 1
+            else:
+                update_year = datetime.now().year
+        
+        await self.send_message.send(
+            f"対象年月: {update_year}/{update_month}\n"
+            "勤怠データを取得開始...\n"
+        )
+        
+        # 勤怠データを取得
+        timecard_data_list = self._get_timecard_data(update_year, update_month)
+        
+        await self.send_message.send("勤怠データの取得が完了しました。")
+        return timecard_data_list
+
+    def _get_timecard_data(self, update_year: int, update_month: int) -> list[Any]:
+        # 勤怠の範囲は前月21日から当月20日まで
+        end_date = datetime(update_year, update_month, 20).date()
+        start_date = (end_date - relativedelta(months=1)).replace(day=21)
+        
+        try:
+            time_card_reader = GoogleTimeCardReader(
+                credentials_path=self.config.google_sheet.credentials_path,
+                spreadsheet_key=self.config.google_sheet.spreadsheet_key,
+                ssl_certificate_validation=self.config.google_sheet.ssl_certificate_validation,
+            )
+            return time_card_reader.read_timecard_sheet(start_date, end_date)
+        except Exception as e:
+            logger.error(f"勤怠データの取得に失敗しました。エラー: {e}")
+            raise ValueError(f"勤怠データの取得に失敗しました。エラー: {e}")
+

@@ -23,6 +23,7 @@ __all__ = [
     'GetCurrentDateTimeTool',
     'UpdatePaidLeaveTool',
     'SubmitPaidLeaveTool',
+    'GetAttendanceStatusTool',
 ] 
 
 config = load_config()
