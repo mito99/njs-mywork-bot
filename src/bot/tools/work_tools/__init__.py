@@ -10,6 +10,7 @@ from .file_lister import ListFilesTool
 from .file_receiver import ReceiveFileTool
 from .file_sender import SendFileTool
 from .paid_leave import SubmitPaidLeaveTool, UpdatePaidLeaveTool
+from .timecard import GetTimecardDataTool
 from .types import FileType
 
 __all__ = [
@@ -23,7 +24,7 @@ __all__ = [
     'GetCurrentDateTimeTool',
     'UpdatePaidLeaveTool',
     'SubmitPaidLeaveTool',
-    'GetAttendanceStatusTool',
+    'GetTimecardDataTool',
 ] 
 
 config = load_config()

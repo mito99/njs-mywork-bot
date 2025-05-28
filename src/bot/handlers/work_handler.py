@@ -18,9 +18,9 @@ from bot.tools.work_tools import (DeleteStorageFileTool,
                                   ReceiveFileTool, SendFileTool,
                                   SubmitAttendanceSheetTool,
                                   UpdateAttendanceSheetTool)
-from bot.tools.work_tools.attendance import GetAttendanceStatusTool
 from bot.tools.work_tools.paid_leave import (SubmitPaidLeaveTool,
                                              UpdatePaidLeaveTool)
+from bot.tools.work_tools.timecard import GetTimecardDataTool
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def register_work_handlers(app: AsyncApp, config: Config):
         chatbot.add_tool(SubmitAttendanceSheetTool(config, client, message))
         chatbot.add_tool(SubmitPaidLeaveTool(config, client, message))
         chatbot.add_tool(GetCurrentDateTimeTool())
-        chatbot.add_tool(GetAttendanceStatusTool(config, client, message))
+        chatbot.add_tool(GetTimecardDataTool(config, client, message))
 
         # 累積メッセージを保持する変数を追加
         accumulated_message = ""

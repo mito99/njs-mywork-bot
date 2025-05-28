@@ -1,5 +1,6 @@
 import logging
-from typing import AsyncIterator, Iterator
+from datetime import datetime
+from typing import AsyncIterator
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -34,16 +35,15 @@ class WorkChatbot:
             "# 代表的な依頼と対応方法 \n"
             "1. 勤怠ファイル/有休ファイルの更新依頼\n"
             "  - 更新依頼があった場合、list_filesツールを使用し、依頼したユーザ名に該当するファイルを特定してください。\n"
-            "  - 依頼内容に更新対象年月が指定されなかった場合は、get_current_datetimeツールを使用し、"
-            "    現在の年月を取得し、これを更新対象年月としてください。\n"
+            "  - 依頼内容に更新対象年月が指定されなかった場合は、現在日時を参照し、これを更新対象年月としてください。\n"
             "  - 続いて、特定したファイルを勤怠ファイルの場合はupdate_attendance_sheetツール、"
             "    有休ファイルの場合はupdate_paid_leaveツールを使用し、ファイルを更新してください。\n"
             "  - 更新後、send_fileツールを使用し、更新後のファイルを提出してください。\n"
             "2. 勤務時間の推測依頼\n"
-            "  - 勤務時間の推測依頼があった場合、get_attendance_statusツールを使用し、勤怠データを取得してください。\n"
-            "  - 依頼内容に推測対象年月が指定されなかった場合は、get_current_datetimeツールを使用し、"
-            "    現在の年月を取得し、これを推測対象年月としてください。\n"
-            "  - 続いて、月末までの勤務時間を求めますが、入力されていない勤務時間を過去のデータから推測して求めユーザに伝えてください。\n"
+            "  - 勤務時間の推測依頼があった場合、get_timecard_dataツールを使用し、勤怠データを取得してください。\n"
+            "  - 依頼内容に推測対象年月が指定されなかった場合は、現在日時を参照し、これを推測対象年月としてください。\n"
+            "  - 続いて、月初から月末までの勤務時間を求oめますが、入力されていない勤務時間を過去のデータから推測して求めユーザに伝えてください。\n"
+            "  - 過去の休日は、未入力であっても推測対象外としてください。\n"
             "  - 依頼内容に、推測に対してリクエストが含まれている場合、推測内容にリクエスト内容を加味してください。\n"
             "  - リクエスト例:\n"
             "    - リクエスト: 仕事が忙しくなりそう => 過去データを参考に、入力されてない勤務時間は、増やした推測値とする。\n"
@@ -59,9 +59,11 @@ class WorkChatbot:
             "# 会社ルール \n"
             "  - 通常の出勤時間は08:50\n"
             "  - 終了時間は17:30(定時), 18:10, 18:40...以降、30分単位で増えていく。** それ以外の終了時刻の設定はできない **\n"
+            "  - 休日は土日祝日。\n"
             "# 注意事項 \n"
             "  - 会社ルールを** 必ず参照してください **\n"
             "  - ツールの使用は** 必ず同期的に行ってください **\n"
+            "  - 返答メッセージの改行コードは、'\n' にしてください。\n"
         )
 
     def add_tool(self, tool: BaseTool):
@@ -94,6 +96,7 @@ class WorkChatbot:
         # ユーザメッセージを追加
         user_message = HumanMessage(
             f"ユーザ名: {message.name}\n"
+            f"現在日時: {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}\n"
             f"ユーザの依頼内容:\n{message.message}\n\n"
             f"ユーザの添付ファイル:\n{str_attached_files}\n\n"
             f"ユーザとのメッセージ履歴:\n{str_user_history}"
